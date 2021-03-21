@@ -21,6 +21,5 @@ if __name__ == '__main__':
             img = cv2.resize(img, (args.img_width, args.img_height))
 
             # os.system('rm %s/%s' % (args.input_dir, item))
-            
             cv2.imwrite('%s/%s.%s' % (args.output_dir, str(j).zfill(5), extension), img)
             j += 1

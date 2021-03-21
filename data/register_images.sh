@@ -37,7 +37,9 @@ do
 
 done
 
+
 DATASET_PATH=$BASE_PATH/$DATASET
+
 # Image-list and frames dir are relative to dataset_path
 # the rest are relative to colmap path
 if [ ! -d "$COLMAP_PATH/$OUTPUT_PATH" ]; then
@@ -59,6 +61,10 @@ python3 create_list.py \
 			--output_file $COLMAP_PATH/$IMAGE_LIST \
 			--relative_path $RELATIVE_PATH
 echo "image-list created"
+
+# echo $COLMAP_PATH/$DATABASE_PATH
+# echo $COLMAP_PATH
+# exit
 
 colmap feature_extractor \
 			--database_path $COLMAP_PATH/$DATABASE_PATH \
@@ -90,7 +96,16 @@ colmap image_registrator \
 			--output_path $COLMAP_PATH/$OUTPUT_PATH
 echo "Registration done"
 
-colmap bundle_adjuster \
-    --input_path $COLMAP_PATH/$OUTPUT_PATH \
-    --output_path $COLMAP_PATH/$OUTPUT_PATH
-echo "Bundle-adj done"
+# sleep 10
+# colmap image_undistorter \
+# 				--image_path $COLMAP_PATH/$OUTPUT_PATH \
+# 				--input_path $COLMAP_PATH/$OUTPUT_PATH \
+# 				--output_path $COLMAP_PATH/$IMAGES/.. \
+# 				--output_type COLMAP
+
+# sleep 10
+
+# colmap bundle_adjuster \
+#     --input_path $COLMAP_PATH/$OUTPUT_PATH \
+#     --output_path $COLMAP_PATH/$OUTPUT_PATH
+# echo "Bundle-adj done"
