@@ -25,7 +25,7 @@ parser.add_argument('--use_pyramid', type=bool, default=config.USE_PYRAMID)
 parser.add_argument('--view_direction', type=bool, default=config.VIEW_DIRECTION)
 parser.add_argument('--data', type=str, default=config.DATA_DIR, help='directory to data')
 parser.add_argument('--checkpoint', type=str, default=config.CHECKPOINT_DIR, help='directory to save checkpoint')
-parser.add_argument('--logdir', type=str, default=config.LOG_DIR, help='directory to save checkpoint')
+parser.add_argument('--logdir', type=str, default=config.LOG_DIR, help='directory to save logs')
 parser.add_argument('--train', default=config.TRAIN_SET)
 parser.add_argument('--epoch', type=int, default=config.EPOCH)
 parser.add_argument('--cropw', type=int, default=config.CROP_W)
@@ -97,7 +97,7 @@ def main():
     model = model.to('cuda')
     # criterion = nn.L1Loss()
     criterion = PerceptualLoss()
-    m_criterion = nn.BCELoss()
+    m_criterion = nn.BCEWithLogitsLoss()
 
     print('Training started')
     for i in range(1, 1+args.epoch):
@@ -110,16 +110,17 @@ def main():
         for samples in tqdm(dataloader):
             
             images, uv_maps, extrinsics, gt_masks, sh, forward = samples
-
+            # print(np.unique(gt_masks[0, :, :, :].numpy()))
             step += images.shape[0]
             optimizer.zero_grad()
             RGB_texture, preds,masks = model(uv_maps.cuda(), extrinsics.cuda())
-            masks = nn.LogSoftmax()(masks)
-            preds = preds*masks
-            sh = sh.cuda()*masks
+            mask_sigmoid = nn.Sigmoid()(masks)
+            sh = sh.cuda()*mask_sigmoid
+            preds = preds * mask_sigmoid
+            preds = preds * sh.cuda()
             
             preds_final = torch.zeros((preds.shape[0], 3, preds.shape[2], preds.shape[3]), dtype=torch.float, device='cuda:0')
-            preds = preds * sh.cuda()
+            
             for z in range(0, 25):
                 preds_final[:, 0, :, :] += preds[:, z*3, :, :]
                 preds_final[:, 1, :, :] += preds[:, z*3+1, :, :]
@@ -147,10 +148,11 @@ def main():
             images, uv_maps, extrinsics, gt_masks, sh, forward = samples
 
             RGB_texture, preds,masks = model(uv_maps.cuda(), extrinsics.cuda())
-            masks.clamp_(0, 1)
-            masks = nn.LogSoftmax()(masks)
-            preds = preds*masks
-            sh = sh.cuda()*masks
+            # print(masks)
+            mask_sigmoid = nn.Sigmoid()(masks)
+
+            preds = preds*mask_sigmoid
+            sh = sh.cuda()*mask_sigmoid
 
             preds_final = torch.zeros((preds.shape[0], 3, preds.shape[2], preds.shape[3]), dtype=torch.float, device='cuda:0')
             preds = preds * sh.cuda()
@@ -180,6 +182,7 @@ def main():
             # out_masks += 0.5
             out_masks = out_masks * 255.0
             out_masks = out_masks.astype(np.uint8)
+            print(out_masks)
 
             gt_masks1 = np.clip(gt_masks[0, :, :, :].numpy(), 0, 1) ** (1.0/2.2)
             gt_masks1 = gt_masks1 * 255.0

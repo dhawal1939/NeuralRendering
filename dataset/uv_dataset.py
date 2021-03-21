@@ -112,6 +112,7 @@ class UVDatasetSH(Dataset):
         img = Image.open(os.path.join(self.dir, 'frames/'+self.idx_list[idx]+'.png'), 'r')
         mask = Image.open(os.path.join(self.dir, 'mask/'+self.idx_list[idx]+'.png'), 'r')
         mask = ImageOps.grayscale(mask)
+        mask = mask.point(lambda p: p > 0.8*255 and 255)
         forward = Image.open(os.path.join(self.dir, 'forward/'+self.idx_list[idx]+'.png'), 'r')
         sh = np.transpose( np.load(os.path.join(self.dir, 'sh/'+self.idx_list[idx]+'.npy')), (2, 0, 1) )
         uv_map = np.load(os.path.join(self.dir, 'uv/'+self.idx_list[idx]+'.npy'))
