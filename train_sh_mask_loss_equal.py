@@ -115,8 +115,8 @@ def main():
             optimizer.zero_grad()
             RGB_texture, preds,masks = model(uv_maps.cuda(), extrinsics.cuda())
             mask_sigmoid = nn.Sigmoid()(masks)
-            sh = sh.cuda()*mask_sigmoid
-            preds = preds * mask_sigmoid
+            #sh = sh.cuda()*mask_sigmoid
+            #preds = preds * mask_sigmoid
             preds = preds * sh.cuda()
             
             preds_final = torch.zeros((preds.shape[0], 3, preds.shape[2], preds.shape[3]), dtype=torch.float, device='cuda:0')
@@ -126,12 +126,11 @@ def main():
                 preds_final[:, 1, :, :] += preds[:, z*3+1, :, :]
                 preds_final[:, 2, :, :] += preds[:, z*3+2, :, :]
 
-            if i < 50:
-                m_loss = m_criterion(masks,gt_masks.cuda())
-                loss = 0.75*criterion.calculate(preds_final, images.cuda()) + 0.25*m_loss
-            else:
-                loss = criterion.calculate(preds_final, images.cuda())
-            
+            preds_final *= mask_sigmoid
+            preds_final = preds_final.clamp(0, 1)
+
+            m_loss = m_criterion(masks,gt_masks.cuda())
+            loss = 0.5*criterion.calculate(preds_final, images.cuda()) + 0.5*m_loss
             loss.backward()
             optimizer.step()
             writer.add_scalar('train/loss_mask', m_loss.item(), step)
@@ -154,8 +153,8 @@ def main():
             # print(masks)
             mask_sigmoid = nn.Sigmoid()(masks)
 
-            preds = preds*mask_sigmoid
-            sh = sh.cuda()*mask_sigmoid
+            #preds = preds
+            #sh = sh.cuda()
 
             preds_final = torch.zeros((preds.shape[0], 3, preds.shape[2], preds.shape[3]), dtype=torch.float, device='cuda:0')
             preds = preds * sh.cuda()
@@ -165,9 +164,11 @@ def main():
                 preds_final[:, 1, :, :] += preds[:, z*3+1, :, :]
                 preds_final[:, 2, :, :] += preds[:, z*3+2, :, :]
             
-            
+            preds_final *= mask_sigmoid
+            preds_final = preds_final.clamp(0, 1)
+
             m_loss = m_criterion(masks,gt_masks.cuda())
-            loss = 0.75*criterion.calculate(preds_final, images.cuda()) + 0.25*m_loss
+            loss = 0.5*criterion.calculate(preds_final, images.cuda()) + 0.5*m_loss
             test_loss += loss.item()
 
             output = np.clip(preds_final[0, :, :, :].detach().cpu().numpy(), 0, 1) ** (1.0/2.2)
