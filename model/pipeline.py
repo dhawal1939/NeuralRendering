@@ -4,9 +4,11 @@ import sys
 import torch
 import torch.nn as nn
 
+import torch.nn.functional as F
+
 sys.path.append('..')
 from model.texture import Texture
-from model.unet import TestUNet
+from model.unet import TestUNet,UNet
 
 class PipeLineSHMaskChannel(nn.Module):
     def __init__(self, W, H, feature_num,use_pyramid=True, view_direction=True):
@@ -59,8 +61,8 @@ class PipeLineSHMaskChannel(nn.Module):
         y = self.unet(x)
         bs = y.shape[0]
         size = y.shape[-1]
-        y_mask = y[:,-1,:,:].reshape((bs,1,size,size))
-        y_sh = y[:,:-1,:,:]
+        y_mask = y[:,0,:,:].reshape((bs,1,size,size))
+        y_sh = y[:,1:,:,:]
         return x[:, 0:3, :, :], y_sh,y_mask
 
 
@@ -112,14 +114,15 @@ class PipeLineSH(nn.Module):
         y = self.unet(x)
         return x[:, 0:3, :, :], y
 
-class PipeLineSHLow(nn.Module):
+
+class PipeLine(nn.Module):
     def __init__(self, W, H, feature_num, use_pyramid=True, view_direction=True):
-        super(PipeLineSHLow, self).__init__()
+        super(PipeLine, self).__init__()
         self.feature_num = feature_num
         self.use_pyramid = use_pyramid
         self.view_direction = view_direction
         self.texture = Texture(W, H, feature_num, use_pyramid)
-        self.unet = TestUNet(feature_num, 27)
+        self.unet = TestUNet(feature_num, 3)
 
     def _spherical_harmonics_basis(self, extrinsics):
         '''
@@ -160,14 +163,14 @@ class PipeLineSHLow(nn.Module):
         y = self.unet(x)
         return x[:, 0:3, :, :], y
 
-class PipeLine(nn.Module):
+class PipeLineMask(nn.Module):
     def __init__(self, W, H, feature_num, use_pyramid=True, view_direction=True):
-        super(PipeLine, self).__init__()
+        super(PipeLineMask, self).__init__()
         self.feature_num = feature_num
         self.use_pyramid = use_pyramid
         self.view_direction = view_direction
         self.texture = Texture(W, H, feature_num, use_pyramid)
-        self.unet = TestUNet(feature_num, 3)
+        self.unet = TestUNet(feature_num, 1)
 
     def _spherical_harmonics_basis(self, extrinsics):
         '''

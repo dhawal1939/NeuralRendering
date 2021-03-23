@@ -1,7 +1,7 @@
 # =============== Basic Configurations ===========
 TEXTURE_W = 512
 TEXTURE_H = 512
-TEXTURE_DIM = 16
+TEXTURE_DIM = 32
 USE_PYRAMID = True
 VIEW_DIRECTION = True
 
@@ -21,7 +21,7 @@ L2_WEIGHT_DECAY = '0.01, 0.001, 0.0001, 0'
 EPS = 1e-8
 LOAD = None
 LOAD_STEP = 0
-EPOCH_PER_CHECKPOINT = 50
+EPOCH_PER_CHECKPOINT = 10
 
 
 # =============== Test Configurations ============

@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 import config
-from dataset.uv_dataset import UVDataset, UVDatasetSH
+from dataset.uv_dataset import UVDataset, UVDatasetSHAakash
 from model.pipeline import PipeLine, PipeLineSH,PipeLineSHMaskChannel
 from loss import PerceptualLoss
 
@@ -67,10 +67,10 @@ def main():
     if not os.path.exists(checkpoint_dir):
         os.makedirs(checkpoint_dir)
 
-    dataset = UVDatasetSH(args.data+'/train/', args.train, args.croph, args.cropw, args.view_direction)
+    dataset = UVDatasetSHAakash(args.data+'/train/', args.train, args.croph, args.cropw, args.view_direction)
     dataloader = DataLoader(dataset, batch_size=args.batch, shuffle=True, num_workers=4)
 
-    test_dataset = UVDatasetSH(args.data+'/test/', args.train, args.croph, args.cropw, args.view_direction)
+    test_dataset = UVDatasetSHAakash(args.data+'/test/', args.train, args.croph, args.cropw, args.view_direction)
     test_dataloader = DataLoader(test_dataset, batch_size=1, shuffle=True, num_workers=4)
     test_step = 0
 
@@ -79,7 +79,7 @@ def main():
         model = torch.load(os.path.join(args.checkpoint, args.load))
         step = args.load_step
     else:
-        model = PipeLineSHMaskChannel(args.texturew, args.textureh, args.texture_dim, args.use_pyramid, args.view_direction)
+        model = PipeLineSH(args.texturew, args.textureh, args.texture_dim, args.use_pyramid, args.view_direction)
         step = 0
 
     l2 = args.l2.split(',')
@@ -102,7 +102,7 @@ def main():
     print('Training started')
     for i in range(1, 1+args.epoch):
         print('Epoch {}'.format(i))
-        adjust_learning_rate(optimizer, i, args.lr)
+        # adjust_learning_rate(optimizer, i, args.lr)
 
         model.train()
         torch.set_grad_enabled(True)
@@ -113,36 +113,41 @@ def main():
             # print(np.unique(gt_masks[0, :, :, :].numpy()))
             step += images.shape[0]
             optimizer.zero_grad()
-            RGB_texture, preds,masks = model(uv_maps.cuda(), extrinsics.cuda())
-            mask_sigmoid = nn.Sigmoid()(masks)
-            if i>=50:
-                mask_sigmoid[mask_sigmoid >= 0.5] = 1
-                mask_sigmoid[mask_sigmoid <0.5 ] = 0
-            # sh = sh.cuda()*mask_sigmoid
+            # RGB_texture, preds, masks = model(uv_maps.cuda(), extrinsics.cuda())
+            RGB_texture, preds = model(uv_maps.cuda(), extrinsics.cuda())
+            # mask_sigmoid = nn.Sigmoid()(masks)
+
+            # sh = sh.cuda() * mask_sigmoid
             # preds = preds * mask_sigmoid
+            sh = sh.cuda() * gt_masks.cuda()
+            preds = preds * gt_masks.cuda()
+
+            sh = sh.view(-1, 25, 3, sh.shape[2], sh.shape[3])
+            preds = preds.view(-1, 25, 3, preds.shape[2], preds.shape[3])
+
             preds = preds * sh.cuda()
+            preds_final = torch.sum(preds, dim=1, keepdim=False)
+            preds_final = torch.clamp(preds_final, 0, 1)
             
-            preds_final = torch.zeros((preds.shape[0], 3, preds.shape[2], preds.shape[3]), dtype=torch.float, device='cuda:0')
+            # preds_final = torch.zeros((preds.shape[0], 3, preds.shape[2], preds.shape[3]), dtype=torch.float, device='cuda:0')
             
-            for z in range(0, 25):
-                preds_final[:, 0, :, :] += preds[:, z*3, :, :]
-                preds_final[:, 1, :, :] += preds[:, z*3+1, :, :]
-                preds_final[:, 2, :, :] += preds[:, z*3+2, :, :]
+            # for z in range(0, 25):
+            #     preds_final[:, 0, :, :] += preds[:, z*3, :, :]
+            #     preds_final[:, 1, :, :] += preds[:, z*3+1, :, :]
+            #     preds_final[:, 2, :, :] += preds[:, z*3+2, :, :]
 
-            
-            preds_final *= mask_sigmoid
-            preds_final = preds_final.clamp(0, 1)
-            # images_mask = images*gt_masks
+            # preds_final *= mask_sigmoid
+            # preds_final = preds_final.clamp(0, 1)
+            # pmin = torch.min( torch.min( torch.min(preds_final, dim=1, keepdims=True)[0], dim=2, keepdims=True )[0], dim=3, keepdims=True )[0]
+            # pmax = torch.max( torch.max( torch.max(preds_final, dim=1, keepdims=True)[0], dim=2, keepdims=True )[0], dim=3, keepdims=True )[0]
+            # preds_final = (preds_final - pmin) / ( pmax - pmin )
 
-            if i <= 50:
-                m_loss = m_criterion(masks,gt_masks.cuda())
-                loss = 0.75*criterion.calculate(preds_final, images.cuda()) + 0.25*m_loss
-            else:
-                loss = criterion.calculate(preds_final, images.cuda())
-            
+            # m_loss = m_criterion(masks, gt_masks.cuda())
+            # loss = 0.5 * criterion.calculate(preds_final, images.cuda()) + 0.5 * m_loss
+            loss = criterion.calculate(preds_final, images.cuda())
             loss.backward()
             optimizer.step()
-            writer.add_scalar('train/loss_mask', m_loss.item(), step)
+            # writer.add_scalar('train/loss_mask', m_loss.item(), step)
             writer.add_scalar('train/loss', loss.item(), step)
         
         model.eval()
@@ -153,69 +158,73 @@ def main():
         all_uv = []
         all_error = []
         all_gt_masks = []
-        all_masks = []
-        all_error_masks = []
+        # all_masks = []
+        # all_error_masks = []
         for samples in tqdm(test_dataloader):
             images, uv_maps, extrinsics, gt_masks, sh, forward = samples
 
-            RGB_texture, preds,masks = model(uv_maps.cuda(), extrinsics.cuda())
-            # print(masks)
-            mask_sigmoid = nn.Sigmoid()(masks)
-            if i>=50:
-                mask_sigmoid[mask_sigmoid >= 0.5] = 1
-                mask_sigmoid[mask_sigmoid <0.5 ] = 0
-            # preds = preds*mask_sigmoid
-            # sh = sh.cuda()*mask_sigmoid
+            # RGB_texture, preds, masks = model(uv_maps.cuda(), extrinsics.cuda())
+            RGB_texture, preds = model(uv_maps.cuda(), extrinsics.cuda())
+            # mask_sigmoid = nn.Sigmoid()(masks)
 
-            preds_final = torch.zeros((preds.shape[0], 3, preds.shape[2], preds.shape[3]), dtype=torch.float, device='cuda:0')
+            # preds = preds * mask_sigmoid
+            # sh = sh.cuda() * mask_sigmoid
+            preds = preds * gt_masks.cuda()
+            sh = sh.cuda() * gt_masks.cuda()
+
+            sh = sh.view(-1, 25, 3, sh.shape[2], sh.shape[3])
+            preds = preds.view(-1, 25, 3, preds.shape[2], preds.shape[3])
+
             preds = preds * sh.cuda()
+            preds_final = torch.sum(preds, dim=1, keepdim=False)
+            preds_final = torch.clamp(preds_final, 0, 1)
 
-            for z in range(0, 25):
-                preds_final[:, 0, :, :] += preds[:, z*3, :, :]
-                preds_final[:, 1, :, :] += preds[:, z*3+1, :, :]
-                preds_final[:, 2, :, :] += preds[:, z*3+2, :, :]
+            # preds_final = torch.zeros((preds.shape[0], 3, preds.shape[2], preds.shape[3]), dtype=torch.float, device='cuda:0')
+            # preds = preds * sh.cuda()
+
+            # for z in range(0, 25):
+            #     preds_final[:, 0, :, :] += preds[:, z*3, :, :]
+            #     preds_final[:, 1, :, :] += preds[:, z*3+1, :, :]
+            #     preds_final[:, 2, :, :] += preds[:, z*3+2, :, :]
             
-            preds_final *= mask_sigmoid
-            preds_final = preds_final.clamp(0, 1)
-            # images_mask = images*gt_masks           
-            
-            if i <= 50:
-                m_loss = m_criterion(masks,gt_masks.cuda())
-                loss = 0.75*criterion.calculate(preds_final, images.cuda()) + 0.25*m_loss
-            else:
-                loss = criterion.calculate(preds_final, images.cuda())
+            # preds_final *= mask_sigmoid
+            # preds_final = preds_final.clamp(0, 1)
+            # pmin = torch.min( torch.min( torch.min(preds_final, dim=1, keepdims=True)[0], dim=2, keepdims=True )[0], dim=3, keepdims=True )[0]
+            # pmax = torch.max( torch.max( torch.max(preds_final, dim=1, keepdims=True)[0], dim=2, keepdims=True )[0], dim=3, keepdims=True )[0]
+            # preds_final = (preds_final - pmin) / ( pmax - pmin )
+
+            # m_loss = m_criterion(masks,gt_masks.cuda())
+            # loss = 0.5 * criterion.calculate(preds_final, images.cuda()) + 0.5 * m_loss
+            loss = criterion.calculate(preds_final, images.cuda())
             test_loss += loss.item()
 
-            output = np.clip(preds_final[0, :, :, :].detach().cpu().numpy(), 0, 1) ** (1.0/2.2)
+            # output = np.clip(preds_final[0, :, :, :].detach().cpu().numpy() ** (1.0/2.2), 0, 1)
+            output = np.clip(preds_final[0, :, :, :].detach().cpu().numpy(), 0, 1)
             output = output * 255.0
             output = output.astype(np.uint8)
 
-            gt = np.clip(images[0, :, :, :].numpy(), 0, 1) ** (1.0/2.2)
+            gt = np.clip(images[0, :, :, :].numpy(), 0, 1)
             gt = gt * 255.0
             gt = gt.astype(np.uint8)
 
             error = np.abs(gt-output)
 
-            out_masks = np.clip(masks[0, :, :, :].detach().cpu().numpy(), 0, 1)
-            # print(np.max(out_masks),np.min(out_masks))
-            # out_masks += 0.5
-            out_masks = out_masks * 255.0
-            out_masks = out_masks.astype(np.uint8)
-            
+            # out_masks = np.clip(masks[0, :, :, :].detach().cpu().numpy(), 0, 1)
+            # out_masks = out_masks * 255.0
+            # out_masks = out_masks.astype(np.uint8)
 
-            gt_masks1 = np.clip(gt_masks[0, :, :, :].numpy(), 0, 1) ** (1.0/2.2)
+            gt_masks1 = np.clip(gt_masks[0, :, :, :].numpy(), 0, 1)
             gt_masks1 = gt_masks1 * 255.0
             gt_masks1 = gt_masks1.astype(np.uint8)
-            
 
-            mask_error = np.abs(gt_masks1-out_masks)
+            # mask_error = np.abs(gt_masks1-out_masks)
 
             all_preds.append(output)
             all_gt.append(gt)
-            all_masks.append(out_masks)
+            # all_masks.append(out_masks)
             all_error.append(error)
             all_gt_masks.append(gt_masks1)
-            all_error_masks.append(mask_error)
+            # all_error_masks.append(mask_error)
 
         # ridx = random.randint(0, len(test_dataset)-1)
         ridx = i%len(test_dataset)
@@ -223,12 +232,11 @@ def main():
         writer.add_scalar('test/loss', test_loss/len(test_dataset), test_step)
         writer.add_image('test/output', all_preds[ridx], test_step)
         writer.add_image('test/gt', all_gt[ridx], test_step)
-        writer.add_image('test/masks', all_masks[ridx], test_step)
-        writer.add_image('test/error_masks', all_error_masks[ridx], test_step)
+        # writer.add_image('test/masks', all_masks[ridx], test_step)
+        # writer.add_image('test/error_masks', all_error_masks[ridx], test_step)
         writer.add_image('test/error', all_error[ridx], test_step)
         writer.add_image('test/gt_masks', all_gt_masks[ridx], test_step)
-        print(np.unique(all_masks[ridx]))
-        print(np.unique(all_gt_masks[ridx]))
+
         test_step += 1
 
         # save checkpoint
