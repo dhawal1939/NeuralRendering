@@ -83,10 +83,12 @@ if __name__ == '__main__':
 
             identifier = img_name.replace('.png', '').replace('.jpg', '').replace('.JPG', '').replace('image', '')
 
-            gt = load_image('%s/video_frames/%s' % (args.data_dir, img_name), (args.img_width, args.img_height))
-            # mask = load_image('%s/video_frames_mask/%s.png' % (args.data_dir, identifier), (args.img_width, args.img_height))
+            print('%s/video_frames_mask/%s.png' % (args.data_dir, identifier))
 
-            # gt = gt * mask
+            gt = load_image('%s/video_frames/%s' % (args.data_dir, img_name), (args.img_width, args.img_height))
+            mask = load_image('%s/video_frames_mask/%s.png' % (args.data_dir, identifier), (args.img_width, args.img_height))
+
+            gt = gt * mask
             print('%s/colmap_output/' % args.data_dir, img_path, 'new_sparse')
 
             p, focal_length, og_width, og_height = camera_pose('%s/colmap_output/' % args.data_dir, img_path, 'new_sparse')
@@ -112,9 +114,9 @@ if __name__ == '__main__':
             for si in range(args.epochs):
                 # Perform a differentiable rendering of the scene
                 image = render(scene, optimizer=opt, unbiased=True, spp=8)
-                # image = image * mask.flatten()
+                image = image * mask.flatten()
 
-                if(i%1 == 0 and si == 0):
+                if(i%10 == 0 and si == 0):
                     gt_ = (gt**(1.0/2.2) ) * 255.0
                     gt_ = gt_.astype(np.uint8)
                     gt_ = gt_.reshape(args.img_height, args.img_width, 3)
