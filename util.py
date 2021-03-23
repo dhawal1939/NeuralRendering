@@ -139,6 +139,38 @@ def augment_center_crop(img, mask, map, sh, crop_size,forward):
 
     return img, map, sh, mask, forward
 
+def augment_center_crop_mask(img, mask, map,crop_size):
+    '''
+    :param img:  PIL input image
+    :param mask:  PIL input mask
+    :param map: numpy input map
+    :param crop_size: a tuple (h, w)
+    :return: image, map and mask
+    '''
+
+    # random crop
+    w, h = img.size
+    crop_h, crop_w = crop_size
+
+    w1 = w/2.0
+    w1 = int(w1 - crop_w/2.0)
+    h1 = h/2.0
+    h1 = int(h1 - crop_h/2.0)
+
+    img = img.crop((w1, h1, w1 + crop_w, h1 + crop_h))
+    mask = mask.crop((w1, h1, w1 + crop_w, h1 + crop_h))
+    map = map[h1:h1 + crop_h, w1:w1 + crop_w, :]
+    # forward = forward.crop((w1, h1, w1 + crop_w, h1 + crop_h))
+    # sh = sh[:, h1:h1 + crop_h, w1:w1 + crop_w]
+
+    # final transform
+    img, mask, map,  = img_transform(img), img_transform(mask),\
+                                    map_transform(map)
+    
+    
+
+    return img, mask, map
+
 def augment_og(img, map, crop_size):
     '''
     :param img:  PIL input image
