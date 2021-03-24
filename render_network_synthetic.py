@@ -11,8 +11,8 @@ from torch.optim import Adam
 from torch.utils.data import DataLoader
 
 import config
-from dataset.uv_dataset import UVDataset, UVDatasetSHEval
-from model.pipeline import PipeLine, PipeLineSH
+from dataset.uv_dataset import UVDatasetSHEval
+from model.pipeline import PipeLineSH
 
 import cv2, imageio
 
