@@ -10,6 +10,8 @@ import torch.nn.functional as F
 from torch.optim import Adam
 from torch.utils.data import DataLoader
 
+from tqdm import tqdm
+
 import config
 from dataset.uv_dataset import UVDataset, UVDatasetSH, UVDatasetSHEvalReal
 from model.pipeline import PipeLine, PipeLineSH
@@ -50,13 +52,8 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    # dataset = UVDatasetSHEvalReal(args.data, args.train, args.croph, args.cropw, args.view_direction)
-    # dataloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=4)
-    image_dataset = UVDatasetSH(args.data+'/test/', args.train, args.croph, args.cropw, args.view_direction)
-    image_dataloader = DataLoader(image_dataset, batch_size=1, shuffle=True, num_workers=4)
-
-    mask_dataset = UVDatasetMask(args.data+'/test/', args.train, args.croph, args.cropw, args.view_direction)
-    mask_dataloader = DataLoader(mask_dataset, batch_size=args.batch, shuffle=True, num_workers=4)
+    dataset = UVDatasetSHEvalReal(args.data, args.train, args.croph, args.cropw, args.view_direction)
+    dataloader = DataLoader(dataset, batch_size=4, shuffle=False, num_workers=4)
 
     model_lif = torch.load(args.lif_checkpoint)
     model_lif = model_lif.to('cuda')
@@ -68,63 +65,50 @@ if __name__ == '__main__':
 
     torch.set_grad_enabled(False)
 
+    iidx = 0
     for idx, samples in enumerate(tqdm(dataloader)):
         # print(idx)
         images, uv_maps, extrinsics, gt_masks, sh, forward = samples
 
         RGB_texture_lif, preds = model_lif(uv_maps.cuda(), extrinsics.cuda())
         RGB_texture_masks, masks = model_mask(uv_maps.cuda(), extrinsics.cuda())
-        
 
-        # preds = preds*masks.cuda()
-        # sh = sh.cuda()*masks.cuda()
+        mask_sigmoid = nn.Sigmoid()(masks)
+        mask_sigmoid[mask_sigmoid >= 0.5] = 1
+        mask_sigmoid[mask_sigmoid <0.5 ] = 0
 
-        preds_final = torch.zeros((preds.shape[0], 3, preds.shape[2], preds.shape[3]), dtype=torch.float, device='cuda:0')
+        sh = sh.view(-1, 25, 3, sh.shape[2], sh.shape[3])
+        preds = preds.view(-1, 25, 3, preds.shape[2], preds.shape[3])
+
         preds = preds * sh.cuda()
-        for z in range(0, 25):
-            preds_final[:, 0, :, :] += preds[:, z*3, :, :]
-            preds_final[:, 1, :, :] += preds[:, z*3+1, :, :]
-            preds_final[:, 2, :, :] += preds[:, z*3+2, :, :]
+        preds_final = torch.sum(preds, dim=1, keepdim=False)
+        preds_final = torch.clamp(preds_final, 0, 1)   
+        
+        preds_final *= mask_sigmoid
+        preds_final = preds_final.clamp(0, 1)
 
-        output = np.clip(preds_final[0, :, :, :].detach().cpu().numpy(), 0, 1) ** (1.0/2.2)
-        output = output * 255.0
-        output = output.astype(np.uint8)
-        output = np.transpose(output, (1, 2, 0))
+        mask_sigmoid = mask_sigmoid.cpu().numpy()
 
-        gt = np.clip(images[0, :, :, :].detach().cpu().numpy(), 0, 1) ** (1.0/2.2)
-        gt = gt * 255.0
-        gt = gt.astype(np.uint8)
-        gt = np.transpose(gt, (1, 2, 0))
+        for j in range(0, preds_final.shape[0]):
+            output = np.clip(preds_final[j, :, :, :].detach().cpu().numpy(), 0, 1) ** (1.0/2.2)
+            output = output * 255.0
+            output = output.astype(np.uint8)
+            output = np.transpose(output, (1, 2, 0))
 
-        for_rend = np.clip(forward[0, :, :, :].numpy(), 0, 1) ** (1.0/2.2)
-        for_rend *= masks[0, :, :, :].numpy()
-        for_rend = for_rend * 255.0
-        for_rend = for_rend.astype(np.uint8)
-        for_rend = np.transpose(for_rend, (1, 2, 0))
+            gt = np.clip(images[j, :, :, :].detach().cpu().numpy(), 0, 1) ** (1.0/2.2)
+            gt *= mask_sigmoid[j, :, :, :]
+            gt = gt * 255.0
+            gt = gt.astype(np.uint8)
+            gt = np.transpose(gt, (1, 2, 0))
 
-        sh = np.clip(sh[0, :, :, :].cpu().numpy(), 0, 1) ** (1.0/2.2)
-        sh *= masks[0, :, :, :].numpy()
-        sh = sh * 255.0
-        sh = sh.astype(np.uint8)
-        sh = np.transpose(sh, (1, 2, 0))
+            for_rend = np.clip(forward[j, :, :, :].cpu().numpy(), 0, 1) ** (1.0/2.2)
+            for_rend *= mask_sigmoid[j, :, :, :]
+            for_rend = for_rend * 255.0
+            for_rend = for_rend.astype(np.uint8)
+            for_rend = np.transpose(for_rend, (1, 2, 0))
 
-        nt = np.clip(RGB_texture[0, :, :, :].cpu().numpy(), 0, 1) ** (1.0/2.2)
-        nt *= masks[0, :, :, :].numpy()
-        nt = nt * 255.0
-        nt = nt.astype(np.uint8)
-        nt = np.transpose(nt, (1, 2, 0))
+            cv2.imwrite(args.output_dir+'/%s_output.png' % str(iidx).zfill(5), cv2.cvtColor(output, cv2.COLOR_RGB2BGR))
+            cv2.imwrite(args.output_dir+'/%s_gt.png' % str(iidx).zfill(5), cv2.cvtColor(gt, cv2.COLOR_RGB2BGR))
+            cv2.imwrite(args.output_dir+'/%s_forward.png' % str(iidx).zfill(5), cv2.cvtColor(for_rend, cv2.COLOR_RGB2BGR))
 
-        mask = np.clip(masks[0, :, :, :].cpu().numpy(), 0, 1) ** (1.0/2.2)
-        mask = mask * 255.0
-        mask = mask.astype(np.uint8)
-        mask = np.transpose(mask, (1, 2, 0))
-        mask = np.repeat(mask, 3, axis=2)
-
-        uv = np.ones((uv_maps.shape[1], uv_maps.shape[2], 3), dtype=np.float)
-        uv[:, :, :2] = np.clip(uv_maps[0, :, :, :].cpu().numpy(), 0, 1) ** (1.0/2.2)
-        uv = uv * 255.0
-        uv = uv.astype(np.uint8)
-
-        cv2.imwrite(args.output_dir+'/%s_output.png' % str(idx).zfill(5), cv2.cvtColor(output, cv2.COLOR_RGB2BGR))
-        cv2.imwrite(args.output_dir+'/%s_gt.png' % str(idx).zfill(5), cv2.cvtColor(gt, cv2.COLOR_RGB2BGR))
-        cv2.imwrite(args.output_dir+'/%s_forward.png' % str(idx).zfill(5), cv2.cvtColor(for_rend, cv2.COLOR_RGB2BGR))
+            iidx += 1

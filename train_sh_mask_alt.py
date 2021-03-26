@@ -267,14 +267,6 @@ def main():
             preds = preds * sh.cuda()
             preds_final = torch.sum(preds, dim=1, keepdim=False)
             preds_final = torch.clamp(preds_final, 0, 1)   
-        
-            # preds_final = torch.zeros((preds.shape[0], 3, preds.shape[2], preds.shape[3]), dtype=torch.float, device='cuda:0')
-            # preds = preds * sh.cuda()
-
-            # for z in range(0, 25):
-            #     preds_final[:, 0, :, :] += preds[:, z*3, :, :]
-            #     preds_final[:, 1, :, :] += preds[:, z*3+1, :, :]
-            #     preds_final[:, 2, :, :] += preds[:, z*3+2, :, :]
             
             preds_final *= mask_sigmoid
             preds_final = preds_final.clamp(0, 1)
