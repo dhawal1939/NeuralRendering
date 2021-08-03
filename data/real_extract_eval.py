@@ -118,6 +118,7 @@ if __name__ == '__main__':
 
     Thread.thread().file_resolver().append(os.path.dirname(args.scene_file))
 
+    # img_list_file = sorted(open(args.image_list_txt, 'r'))[99:200]
     img_list_file = sorted(open(args.image_list_txt, 'r'))
     img_list = []
     for idx, l in enumerate(img_list_file):

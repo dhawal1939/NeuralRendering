@@ -102,6 +102,8 @@ if __name__ == '__main__':
     parser.add_argument('--focal_length', type=str, default='28.0mm') # Default set to focal length of iPhone X, wide angle camera
     parser.add_argument('--img_width', type=int, default=512)
     parser.add_argument('--img_height', type=int, default=512)
+    parser.add_argument('--lb', type=int, default=180)
+    parser.add_argument('--ub', type=int, default=230)
 
     args = parser.parse_args()
 
@@ -113,7 +115,7 @@ if __name__ == '__main__':
     Thread.thread().file_resolver().append(os.path.dirname(args.scene_file))
 
     frames_dir = 'video_frames_test'
-    img_list = sorted(os.listdir('%s/%s/' % (args.data_dir, frames_dir)))
+    img_list = sorted(os.listdir('%s/%s/' % (args.data_dir, frames_dir)))[args.lb:args.ub]
+    # img_list = sorted(os.listdir('%s/%s/' % (args.data_dir, frames_dir)))[319:]
     for i, img_name in enumerate(img_list):
-        if '00232' in img_name:
-            process(args, i, img_name, frames_dir, args.output_dir)
+        process(args, i, img_name, frames_dir, args.output_dir)

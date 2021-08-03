@@ -169,11 +169,13 @@ scene_dr_perfect_geometry.xml: GT geometry and DR material
 
 [ UV UNWRAPS THE RECONSTRUCTED MESH ]
 - python data/uv_redner.py --input_file /media/aakash/wd1/DATASETS/FISH/cleaned.obj --output_file /media/aakash/wd1/DATASETS/FISH/unwrapped.obj
+- UV unwrapping can also be done in blender (Do it in the next step before exporting as .ply)
 
-- FINAL EXPORT TO PLY
+- FINAL EXPORT TO PLY FROM BLENDER
   - Export as .ply with Y up and -Z forward
 
 - MAKE MITSUBA SCENE FILES
+  - Use template file 'scene_dr_real.xml' from 'data/example_scene_files/'
   - Make 'scene_dr.xml' mitsuba scene description file
 
 - MAKE 'optimized_textures' DIRECTORY
@@ -182,23 +184,10 @@ scene_dr_perfect_geometry.xml: GT geometry and DR material
 
 - MAKE 'dr_log' DIRECTORY
 
-[ CREATE MASK ]
-[IN CASE OF HUBER PHOTO SCAN USE THE FOLLOWING]
-[ TRAIN ]
-- python threshold.py --th .9 --input_dir /media/aakash/wd1/DATASETS/HUBER_PHOTOSCAN/video_frames_test --output_dir /media/aakash/wd1/DATASETS/HUBER_PHOTOSCAN/video_frames_test_mask/
-[ TEST ]
-- python threshold.py --th .9 --input_dir /media/aakash/wd1/DATASETS/HUBER_PHOTOSCAN/video_frames --output_dir /media/aakash/wd1/DATASETS/HUBER_PHOTOSCAN/video_frames_mask/
-
-[ IN CASE OF HEAD THE WHOLE SCENE IS POINT OF INTEREST ]
-- python head_masks.py --input_dir /media/aakash/wd1/DATASETS/HEAD/video_frames --output_dir /media/aakash/wd1/DATASETS/HEAD/video_frames_mask/
-
-- python head_masks.py --input_dir /media/aakash/wd1/DATASETS/HEAD/video_frames_test --output_dir /media/aakash/wd1/DATASETS/HEAD/video_frames_test_mask/
-
-
-[ CREATE MASK FOR TRAINING VIDEO FRAMES ]
+[ CREATE MASKS FOR TRAINING VIDEO FRAMES ]
 - python create_frame_mask.py --data_dir /media/aakash/wd1/DATASETS/FISH --frames_dir video_frames --output_dir video_frames_mask --model_path U2Net/saved_models --model_name u2net
 
-[ CREATE MASK FOR TEST VIDEO FRAMES ]
+[ CREATE MASKS FOR TEST VIDEO FRAMES ]
 - python create_frame_mask.py --data_dir /media/aakash/wd1/DATASETS/FISH --frames_dir video_frames_test --output_dir video_frames_test_mask --model_path U2Net/saved_models --model_name u2net
 
 [ OPTIMIZES FOR MATERIAL FROM COLMAP GEOMETRY ]
@@ -214,7 +203,17 @@ scene_dr_perfect_geometry.xml: GT geometry and DR material
     - uv_png
     - mask
     - sh
-  - Make 'evaluation' subdirectory with the following sub-subdirectories
+
+[ GERERATES TRAINING DATA, SAVES TO 'output_dir' ]
+- python data/real_extract.py --scene_file /media/aakash/wd1/DATASETS/FISH/scene_dr.xml --data_dir /media/aakash/wd1/DATASETS/FISH/ --output_dir /media/aakash/wd1/DATASETS/FISH/B,Diff,Cm/ --train_image_list_txt /media/aakash/wd1/DATASETS/FISH/colmap_output/dense/0/image-list.txt --test_image_list_txt /media/aakash/wd1/DATASETS/FISH/colmap_output/colmap_output_test/dense/0/image-list.txt --img_width 960 --img_height 540
+
+[ TRAIN NETWORK ]
+- python train_sh.py --data /ssd_scratch/cvit/darthgera123/FISH/B,Diff,Cm/ --checkpoint /scratch/darthgera123/FISH/checkpoints/ --logdir /scratch/darthgera123/FISH/logs/ --epoch 50 --epoch_per_checkpoint 5
+
+- Copy the trained model weights to some directory
+
+- MAKE A SEPARATE 'evaluation' DIRECTORY INSIDE 'B,Diff,Cm'
+  - Make 'original' subdiretory with the following subdirectories
     - extrinsics
     - frames
     - forward
@@ -223,38 +222,17 @@ scene_dr_perfect_geometry.xml: GT geometry and DR material
     - mask
     - sh
     - env_sh
+  - For inference on new materials, make 'material_1', 'material_2' etc. subdirectories with same structure.
 
-[ GERERATES TRAINING DATA, SAVES TO 'output_dir' ]
-- python data/real_extract.py --scene_file /media/aakash/wd1/DATASETS/FISH/scene_dr.xml --data_dir /media/aakash/wd1/DATASETS/FISH/ --output_dir /media/aakash/wd1/DATASETS/FISH/B,Diff,Cm/ --train_image_list_txt /media/aakash/wd1/DATASETS/FISH/colmap_output/dense/0/image-list.txt --test_image_list_txt /media/aakash/wd1/DATASETS/FISH/colmap_output/colmap_output_test/dense/0/image-list.txt --img_width 960 --img_height 540
+- CREATE SCENE FILES FOR NEW MATERIALS
+  - Use the template 'scene_dr_real.xml' and change the diffuse texture or the material model.
+  - Save the file, this should be used in 'real_extract.py' as input for generating inference data on a new material.
 
-[ TRAIN NETWORK ]
-- python train_sh.py --data /ssd_scratch/cvit/darthgera123/FISH/B,Diff,Cm/ --checkpoint /scratch/darthgera123/FISH/checkpoints/ --logdir /scratch/darthgera123/FISH/logs/ --epoch 50 --epoch_per_checkpoint 5
-
-[ EXTRACT NEW INFERENCE DATA ]
+[ GENERATE EVALUATION DATA FROM TEST SET FOR NEW MATERIAL, SAVES TO 'output_dir' ]
 - python data/real_extract_eval.py --scene_file /media/aakash/wd1/DATASETS/FISH/scene_material_1.xml --data_dir /media/aakash/wd1/DATASETS/FISH/video_frames_test/ --data_mask_dir /media/aakash/wd1/DATASETS/FISH/video_frames_test_mask/ --output_dir /media/aakash/wd1/DATASETS/FISH/B,Diff,Cm/evaluation/material_1/ --image_list_txt /media/aakash/wd1/DATASETS/FISH/colmap_output/colmap_output_test/dense/0/image-list.txt --colmap_dir /media/aakash/wd1/DATASETS/FISH/colmap_output/colmap_output_test/ --img_width 960 --img_height 540
 
+[ INFERENCE ]
+- python render_network_real.py --data /media/aakash/wd2/DATASETS/TANKS/B,Diff,Cm/evaluation/original/ --lif_checkpoint /media/aakash/wd2/WEIGHTS/TANKS/lif_epoch_150.pt --mask_checkpoint /media/aakash/wd2/WEIGHTS/TANKS/mask_epoch_30.pt --output_dir /media/aakash/wd2/EVALUATION/TANKS/original/
 
 
 
-
-
-# STEPS TO RUN THE PIPELINE (TAKING BUDDHA AS EXAMPLE)
-
-- python data/extract_frames.py --video_file /media/aakash/wd1/DATASETS/BUDDHA/video.mp4 --output_dir /media/aakash/wd1/DATASETS/BUDDHA/video_frames/
-
-- python data/sample_frames.py --input_dir /media/aakash/wd1/DATASETS/BUDDHA/video_frames/ --output_dir /media/aakash/wd1/DATASETS/BUDDHA/colmap_capture/ --skip 3
-
-- RUN COLMAP AUTOMATIC RECON
-  - Set shared intrinsics
-  - Set quality to medium
-  - Set image type to "Video Frames"
-
-- CLEAN MESH IN MESHLAB
-  - Quadratic edge collapse decimation
-  - Remove non-manifold edges/vertices
-  - Export as .obj
-
-- python data/uv_redner.py --input_file /media/aakash/wd1/DATASETS/BUDDHA/cleaned.obj --output_file /media/aakash/wd1/DATASETS/BUDDHA/unwrapped.obj
-
-- TRIANGULATE FACES IN BLENDER
-  - Export as .ply with Y up and -Z forward

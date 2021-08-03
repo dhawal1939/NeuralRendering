@@ -253,9 +253,7 @@ def main():
             preds = preds * sh.cuda()
             preds_final = torch.sum(preds, dim=1, keepdim=False)
             preds_final = torch.clamp(preds_final, 0, 1)   
-        
             preds_final *= mask_sigmoid
-            preds_final = preds_final.clamp(0, 1)
  
             loss = criterion_lif.calculate(preds_final, images.cuda())
             
