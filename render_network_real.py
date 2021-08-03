@@ -13,8 +13,8 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 import config
-from dataset.uv_dataset import UVDataset, UVDatasetSH, UVDatasetSHEvalReal
-from model.pipeline import PipeLine, PipeLineSH
+from dataset.uv_dataset import UVDatasetSH, UVDatasetSHEvalReal
+from model.pipeline import PipeLineSH
 
 import cv2
 

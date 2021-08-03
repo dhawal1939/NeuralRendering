@@ -7,73 +7,20 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 sys.path.append('..')
-from model.texture import Texture
-from model.unet import TestUNet,UNet
-
-class PipeLineSHMaskChannel(nn.Module):
-    def __init__(self, W, H, feature_num,use_pyramid=True, view_direction=True):
-        super(PipeLineSHMaskChannel, self).__init__()
-        self.feature_num = feature_num
-        self.use_pyramid = use_pyramid
-        self.view_direction = view_direction
-        self.texture = Texture(W, H, feature_num, use_pyramid)
-        
-        self.unet = TestUNet(feature_num, 75+1)
-        # self.mask_unet = TestUNet(feature_num,1)
-
-    def _spherical_harmonics_basis(self, extrinsics):
-        '''
-        extrinsics: a tensor shaped (N, 3)
-        output: a tensor shaped (N, 9)
-        '''
-        batch = extrinsics.shape[0]
-        sh_bands = torch.ones((batch, 9), dtype=torch.float)
-        coff_0 = 1 / (2.0*math.sqrt(np.pi))
-        coff_1 = math.sqrt(3.0) * coff_0
-        coff_2 = math.sqrt(15.0) * coff_0
-        coff_3 = math.sqrt(1.25) * coff_0
-        # l=0
-        sh_bands[:, 0] = coff_0
-        # l=1
-        sh_bands[:, 1] = extrinsics[:, 1] * coff_1
-        sh_bands[:, 2] = extrinsics[:, 2] * coff_1
-        sh_bands[:, 3] = extrinsics[:, 0] * coff_1
-        # l=2
-        sh_bands[:, 4] = extrinsics[:, 0] * extrinsics[:, 1] * coff_2
-        sh_bands[:, 5] = extrinsics[:, 1] * extrinsics[:, 2] * coff_2
-        sh_bands[:, 6] = (3.0 * extrinsics[:, 2] * extrinsics[:, 2] - 1.0) * coff_3
-        sh_bands[:, 7] = extrinsics[:, 2] * extrinsics[:, 0] * coff_2
-        sh_bands[:, 8] = (extrinsics[:, 0] * extrinsics[:, 0] - extrinsics[:, 2] * extrinsics[:, 2]) * coff_2
-        return sh_bands
-
-    def forward(self, *args):
-        if self.view_direction:
-            uv_map, extrinsics= args
-            x = self.texture(uv_map)
-            assert x.shape[1] >= 12
-            basis = self._spherical_harmonics_basis(extrinsics).cuda()
-            basis = basis.view(basis.shape[0], basis.shape[1], 1, 1)
-            x[:, 3:12, :, :] = x[:, 3:12, :, :] * basis
-        else:
-            uv_map = args[0]
-            x = self.texture(uv_map)
-        
-        y = self.unet(x)
-        bs = y.shape[0]
-        size = y.shape[-1]
-        y_mask = y[:,0,:,:].reshape((bs,1,size,size))
-        y_sh = y[:,1:,:,:]
-        return x[:, 0:3, :, :], y_sh,y_mask
+from model.texture import Texture,TextureMapper
+from model.unet import TestUNet,MaskUNet
 
 
 class PipeLineSH(nn.Module):
-    def __init__(self, W, H, feature_num, use_pyramid=True, view_direction=True):
+    def __init__(self, W, H, feature_num, sh_channels=9,use_pyramid=True, view_direction=True):
         super(PipeLineSH, self).__init__()
         self.feature_num = feature_num
         self.use_pyramid = use_pyramid
         self.view_direction = view_direction
+        # self.texture = Texture(W, H, feature_num, use_pyramid)
         self.texture = Texture(W, H, feature_num, use_pyramid)
-        self.unet = TestUNet(feature_num, 75)
+        # self.texture = TextureMapper(texture_size=W,texture_num_ch=16,mipmap_level=4)
+        self.unet = TestUNet(feature_num, sh_channels*3)
 
     def _spherical_harmonics_basis(self, extrinsics):
         '''
@@ -82,6 +29,22 @@ class PipeLineSH(nn.Module):
         '''
         batch = extrinsics.shape[0]
         sh_bands = torch.ones((batch, 9), dtype=torch.float)
+        # coff_0 = 1 / (2.0*math.sqrt(np.pi))
+        # coff_1 = math.sqrt(3.0) * coff_0
+        # coff_2 = math.sqrt(15.0) * coff_0
+        # coff_3 = math.sqrt(1.25) * coff_0
+        # # l=0
+        # sh_bands[:, 0] = coff_0
+        # # l=1
+        # sh_bands[:, 1] = extrinsics[:, 1] * coff_1
+        # sh_bands[:, 2] = extrinsics[:, 2] * coff_1
+        # sh_bands[:, 3] = extrinsics[:, 0] * coff_1
+        # # l=2
+        # sh_bands[:, 4] = extrinsics[:, 0] * extrinsics[:, 1] * coff_2
+        # sh_bands[:, 5] = extrinsics[:, 1] * extrinsics[:, 2] * coff_2
+        # sh_bands[:, 6] = (3.0 * extrinsics[:, 2] * extrinsics[:, 2] - 1.0) * coff_3
+        # sh_bands[:, 7] = extrinsics[:, 2] * extrinsics[:, 0] * coff_2
+        # sh_bands[:, 8] = (extrinsics[:, 0] * extrinsics[:, 0] - extrinsics[:, 2] * extrinsics[:, 2]) * coff_2
         coff_0 = 1 / (2.0*math.sqrt(np.pi))
         coff_1 = math.sqrt(3.0) * coff_0
         coff_2 = math.sqrt(15.0) * coff_0
@@ -89,15 +52,15 @@ class PipeLineSH(nn.Module):
         # l=0
         sh_bands[:, 0] = coff_0
         # l=1
-        sh_bands[:, 1] = extrinsics[:, 1] * coff_1
+        sh_bands[:, 1] = extrinsics[:, 1] * coff_1 * math.sqrt(0.5)
         sh_bands[:, 2] = extrinsics[:, 2] * coff_1
-        sh_bands[:, 3] = extrinsics[:, 0] * coff_1
+        sh_bands[:, 3] = extrinsics[:, 0] * coff_1 * (-1)*math.sqrt(0.5)
         # l=2
-        sh_bands[:, 4] = extrinsics[:, 0] * extrinsics[:, 1] * coff_2
-        sh_bands[:, 5] = extrinsics[:, 1] * extrinsics[:, 2] * coff_2
+        sh_bands[:, 4] = extrinsics[:, 0] * extrinsics[:, 1] * coff_2 * 0.5* math.sqrt(0.5)
+        sh_bands[:, 5] = extrinsics[:, 1] * extrinsics[:, 2] * coff_2 * math.sqrt(0.5)
         sh_bands[:, 6] = (3.0 * extrinsics[:, 2] * extrinsics[:, 2] - 1.0) * coff_3
-        sh_bands[:, 7] = extrinsics[:, 2] * extrinsics[:, 0] * coff_2
-        sh_bands[:, 8] = (extrinsics[:, 0] * extrinsics[:, 0] - extrinsics[:, 2] * extrinsics[:, 2]) * coff_2
+        sh_bands[:, 7] = extrinsics[:, 2] * extrinsics[:, 0] * coff_2 *(-1)*math.sqrt(0.5)
+        sh_bands[:, 8] = (extrinsics[:, 0] * extrinsics[:, 0] - extrinsics[:, 2] * extrinsics[:, 2]) * coff_2*0.5*math.sqrt(0.5)
         return sh_bands
 
     def forward(self, *args):
@@ -114,54 +77,6 @@ class PipeLineSH(nn.Module):
         y = self.unet(x)
         return x[:, 0:3, :, :], y
 
-
-class PipeLine(nn.Module):
-    def __init__(self, W, H, feature_num, use_pyramid=True, view_direction=True):
-        super(PipeLine, self).__init__()
-        self.feature_num = feature_num
-        self.use_pyramid = use_pyramid
-        self.view_direction = view_direction
-        self.texture = Texture(W, H, feature_num, use_pyramid)
-        self.unet = TestUNet(feature_num, 3)
-
-    def _spherical_harmonics_basis(self, extrinsics):
-        '''
-        extrinsics: a tensor shaped (N, 3)
-        output: a tensor shaped (N, 9)
-        '''
-        batch = extrinsics.shape[0]
-        sh_bands = torch.ones((batch, 9), dtype=torch.float)
-        coff_0 = 1 / (2.0*math.sqrt(np.pi))
-        coff_1 = math.sqrt(3.0) * coff_0
-        coff_2 = math.sqrt(15.0) * coff_0
-        coff_3 = math.sqrt(1.25) * coff_0
-        # l=0
-        sh_bands[:, 0] = coff_0
-        # l=1
-        sh_bands[:, 1] = extrinsics[:, 1] * coff_1
-        sh_bands[:, 2] = extrinsics[:, 2] * coff_1
-        sh_bands[:, 3] = extrinsics[:, 0] * coff_1
-        # l=2
-        sh_bands[:, 4] = extrinsics[:, 0] * extrinsics[:, 1] * coff_2
-        sh_bands[:, 5] = extrinsics[:, 1] * extrinsics[:, 2] * coff_2
-        sh_bands[:, 6] = (3.0 * extrinsics[:, 2] * extrinsics[:, 2] - 1.0) * coff_3
-        sh_bands[:, 7] = extrinsics[:, 2] * extrinsics[:, 0] * coff_2
-        sh_bands[:, 8] = (extrinsics[:, 0] * extrinsics[:, 0] - extrinsics[:, 2] * extrinsics[:, 2]) * coff_2
-        return sh_bands
-
-    def forward(self, *args):
-        if self.view_direction:
-            uv_map, extrinsics = args
-            x = self.texture(uv_map)
-            assert x.shape[1] >= 12
-            basis = self._spherical_harmonics_basis(extrinsics).cuda()
-            basis = basis.view(basis.shape[0], basis.shape[1], 1, 1)
-            x[:, 3:12, :, :] = x[:, 3:12, :, :] * basis
-        else:
-            uv_map = args[0]
-            x = self.texture(uv_map)
-        y = self.unet(x)
-        return x[:, 0:3, :, :], y
 
 class PipeLineMask(nn.Module):
     def __init__(self, W, H, feature_num, use_pyramid=True, view_direction=True):
@@ -170,7 +85,7 @@ class PipeLineMask(nn.Module):
         self.use_pyramid = use_pyramid
         self.view_direction = view_direction
         self.texture = Texture(W, H, feature_num, use_pyramid)
-        self.unet = TestUNet(feature_num, 1)
+        self.unet = MaskUNet(feature_num, 1)
 
     def _spherical_harmonics_basis(self, extrinsics):
         '''
