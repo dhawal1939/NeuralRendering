@@ -41,7 +41,6 @@ parser.add_argument('--load_mask', type=str, default=config.LOAD)
 parser.add_argument('--load_lif', type=str, default=config.LOAD)
 parser.add_argument('--load_step', type=int, default=config.LOAD_STEP)
 parser.add_argument('--epoch_per_checkpoint', type=int, default=config.EPOCH_PER_CHECKPOINT)
-parser.add_argument('--channels',type=int,default=25)
 args = parser.parse_args()
 
 
@@ -60,7 +59,6 @@ def adjust_learning_rate(optimizer, epoch, original_lr):
 
 
 def main():
-    # print(len(os.listdir('/scratch/iccv_workshop/BUNNY_ALL_GT/B/')))
     named_tuple = time.localtime()
     time_string = time.strftime("%m_%d_%Y_%H_%M", named_tuple)
     log_dir = os.path.join(args.logdir, time_string)
@@ -68,7 +66,7 @@ def main():
         os.makedirs(log_dir)
     writer = tensorboardX.SummaryWriter(logdir=log_dir)
 
-    checkpoint_dir = f'{args.checkpoint}/{time_string}'
+    checkpoint_dir = args.checkpoint + time_string
     if not os.path.exists(checkpoint_dir):
         os.makedirs(checkpoint_dir)
 
@@ -89,8 +87,7 @@ def main():
 
     model_mask = PipeLineMask(256, 256, args.mask_texture_dim, args.use_pyramid, args.view_direction)
     mask_step = 0
-    model_lif = PipeLineSH(args.texturew, args.textureh, args.texture_dim, 
-        args.channels,args.use_pyramid, args.view_direction)
+    model_lif = PipeLineSH(args.texturew, args.textureh, args.texture_dim, args.use_pyramid, args.view_direction)
     lif_step = 0
 
 
@@ -107,85 +104,89 @@ def main():
         {'params': model_mask.unet.parameters(), 'lr': 0.1 * args.lr}],
         betas=betas, eps=args.eps)
     
+    # optimizer_lif = Adam([
+    #     {'params': model_lif.texture.layer1, 'weight_decay': l2[0], 'lr': args.lr},
+    #     {'params': model_lif.texture.layer2, 'weight_decay': l2[1], 'lr': args.lr},
+    #     {'params': model_lif.texture.layer3, 'weight_decay': l2[2], 'lr': args.lr},
+    #     {'params': model_lif.texture.layer4, 'weight_decay': l2[3], 'lr': args.lr},
+    #     {'params': model_lif.unet.parameters(), 'lr': 0.1 * args.lr}],
+    #     betas=betas, eps=args.eps)
     optimizer_lif = Adam([
-        {'params': model_lif.texture.layer1, 'weight_decay': l2[0], 'lr': args.lr},
-        {'params': model_lif.texture.layer2, 'weight_decay': l2[1], 'lr': args.lr},
-        {'params': model_lif.texture.layer3, 'weight_decay': l2[2], 'lr': args.lr},
-        {'params': model_lif.texture.layer4, 'weight_decay': l2[3], 'lr': args.lr},
-        {'params': model_lif.unet.parameters(), 'lr': 0.1 * args.lr}],
-        betas=betas, eps=args.eps)
+        {'params': model_lif.texture.parameters(), 'weight_decay': l2[1], 'lr': args.lr},
+        {'params': model_lif.unet.parameters(), 'lr': 0.1 * args.lr},
+        ],betas=betas, eps=args.eps)
 
-
+    model_mask = torch.load('/scratch/aakash/new/WOMAN/checkpoints/05_30_2021_07_35/mask_epoch_10.pt')
     model_mask = model_mask.to('cuda')
     model_lif = model_lif.to('cuda')
     criterion_lif = PerceptualLoss()
     criterion_mask = nn.BCEWithLogitsLoss()
 
-    print('Mask Training started')
-    for i in range(1, 1+args.mask_epoch):
-        print('Epoch {}'.format(i))
+    # print('Mask Training started')
+    # for i in range(1, 1+args.mask_epoch):
+    #     print('Epoch {}'.format(i))
 
-        model_mask.train()
-        torch.set_grad_enabled(True)
+    #     model_mask.train()
+    #     torch.set_grad_enabled(True)
 
-        for samples in tqdm(mask_dataloader):
+    #     for samples in tqdm(mask_dataloader):
             
-            uv_maps, extrinsics, gt_masks = samples
-            mask_step += gt_masks.shape[0]
-            optimizer_mask.zero_grad()
-            RGB_texture, masks = model_mask(uv_maps.cuda(), extrinsics.cuda())
+    #         uv_maps, extrinsics, gt_masks = samples
+    #         mask_step += gt_masks.shape[0]
+    #         optimizer_mask.zero_grad()
+    #         RGB_texture, masks = model_mask(uv_maps.cuda(), extrinsics.cuda())
             
-            m_loss = criterion_mask(masks,gt_masks.cuda())
-            m_loss.backward()
+    #         m_loss = criterion_mask(masks,gt_masks.cuda())
+    #         m_loss.backward()
             
-            optimizer_mask.step()
-            writer.add_scalar('train/loss_mask', m_loss.item(), mask_step)
+    #         optimizer_mask.step()
+    #         writer.add_scalar('train/loss_mask', m_loss.item(), mask_step)
             
-        model_mask.eval()
-        torch.set_grad_enabled(False)
-        test_loss = 0
+    #     model_mask.eval()
+    #     torch.set_grad_enabled(False)
+    #     test_loss = 0
         
-        all_gt_masks = []
-        all_masks = []
-        all_error_masks = []
+    #     all_gt_masks = []
+    #     all_masks = []
+    #     all_error_masks = []
         
-        for samples in tqdm(mask_test_dataloader):
-            uv_maps, extrinsics, gt_masks = samples
+    #     for samples in tqdm(mask_test_dataloader):
+    #         uv_maps, extrinsics, gt_masks = samples
 
-            RGB_texture, masks = model_mask(uv_maps.cuda(), extrinsics.cuda())
-            m_loss = criterion_mask(masks,gt_masks.cuda())
-            loss = m_loss
+    #         RGB_texture, masks = model_mask(uv_maps.cuda(), extrinsics.cuda())
+    #         m_loss = criterion_mask(masks,gt_masks.cuda())
+    #         loss = m_loss
             
-            test_loss += loss.item()
+    #         test_loss += loss.item()
 
-            out_masks = np.clip(masks[0, :, :, :].detach().cpu().numpy(), 0, 1)
-            out_masks = out_masks * 255.0
-            out_masks = out_masks.astype(np.uint8)
-            all_masks.append(out_masks)
+    #         out_masks = np.clip(masks[0, :, :, :].detach().cpu().numpy(), 0, 1)
+    #         out_masks = out_masks * 255.0
+    #         out_masks = out_masks.astype(np.uint8)
+    #         all_masks.append(out_masks)
                 
 
-            gt_masks1 = np.clip(gt_masks[0, :, :, :].numpy(), 0, 1) ** (1.0/2.2)
-            gt_masks1 = gt_masks1 * 255.0
-            gt_masks1 = gt_masks1.astype(np.uint8)
-            all_gt_masks.append(gt_masks1)
+    #         gt_masks1 = np.clip(gt_masks[0, :, :, :].numpy(), 0, 1) ** (1.0/2.2)
+    #         gt_masks1 = gt_masks1 * 255.0
+    #         gt_masks1 = gt_masks1.astype(np.uint8)
+    #         all_gt_masks.append(gt_masks1)
             
-            mask_error = np.abs(gt_masks1-out_masks)
-            all_error_masks.append(mask_error)
+    #         mask_error = np.abs(gt_masks1-out_masks)
+    #         all_error_masks.append(mask_error)
 
-        ridx = i%len(mask_test_dataset)
-        writer.add_scalar('test/mask_loss', test_loss/len(mask_test_dataset), mask_test_step)
-        writer.add_image('test/masks', all_masks[ridx], mask_test_step)
-        writer.add_image('test/error_masks', all_error_masks[ridx], mask_test_step)
-        writer.add_image('test/gt_masks', all_gt_masks[ridx], mask_test_step)
-        # print(np.unique(all_masks[ridx]))
-        # print(np.unique(all_gt_masks[ridx]))
-        mask_test_step += 1
+    #     ridx = i%len(mask_test_dataset)
+    #     writer.add_scalar('test/mask_loss', test_loss/len(mask_test_dataset), mask_test_step)
+    #     writer.add_image('test/masks', all_masks[ridx], mask_test_step)
+    #     writer.add_image('test/error_masks', all_error_masks[ridx], mask_test_step)
+    #     writer.add_image('test/gt_masks', all_gt_masks[ridx], mask_test_step)
+    #     print(np.unique(all_masks[ridx]))
+    #     print(np.unique(all_gt_masks[ridx]))
+    #     mask_test_step += 1
 
-        # save checkpoint
+    #     # save checkpoint
         
-        if i % args.epoch_per_checkpoint == 0:
-            print('Saving checkpoint')
-            torch.save(model_mask, checkpoint_dir+'/mask_epoch_{}.pt'.format(i))
+    #     if i % args.epoch_per_checkpoint == 0:
+    #         print('Saving checkpoint')
+    #         torch.save(model_mask, args.checkpoint+time_string+'/mask_epoch_{}.pt'.format(i))
 
     
     print("Output Training started")
@@ -197,7 +198,7 @@ def main():
 
         for samples in tqdm(image_dataloader):
             
-            images, uv_maps, extrinsics, gt_masks, sh = samples
+            images, uv_maps, extrinsics, gt_masks, sh  = samples
             lif_step += images.shape[0]
             optimizer_lif.zero_grad()
             
@@ -208,8 +209,9 @@ def main():
             mask_sigmoid[mask_sigmoid >= 0.5] = 1
             mask_sigmoid[mask_sigmoid <0.5 ] = 0
 
-            sh = sh.view(-1,args.channels, 3, sh.shape[2], sh.shape[3])
-            preds = preds.view(-1,args.channels, 3, preds.shape[2], preds.shape[3])
+
+            sh = sh.view(-1, 9, 3, sh.shape[2], sh.shape[3])
+            preds = preds.view(-1, 9, 3, preds.shape[2], preds.shape[3])
 
             preds = preds * sh.cuda()
             preds_final = torch.sum(preds, dim=1, keepdim=False)
@@ -245,8 +247,8 @@ def main():
             mask_sigmoid[mask_sigmoid >= 0.5] = 1
             mask_sigmoid[mask_sigmoid <0.5 ] = 0
 
-            sh = sh.view(-1, args.channels, 3, sh.shape[2], sh.shape[3])
-            preds = preds.view(-1, args.channels, 3, preds.shape[2], preds.shape[3])
+            sh = sh.view(-1, 9, 3, sh.shape[2], sh.shape[3])
+            preds = preds.view(-1, 9, 3, preds.shape[2], preds.shape[3])
 
             preds = preds * sh.cuda()
             preds_final = torch.sum(preds, dim=1, keepdim=False)
@@ -298,7 +300,7 @@ def main():
         
         if i % args.epoch_per_checkpoint == 0:
             print('Saving checkpoint')
-            torch.save(model_lif, checkpoint_dir+'/lif_epoch_{}.pt'.format(i))
+            torch.save(model_lif, args.checkpoint+time_string+'/lif_epoch_{}.pt'.format(i))
 
 if __name__ == '__main__':
     main()
