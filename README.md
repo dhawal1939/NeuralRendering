@@ -190,8 +190,16 @@ scene_dr_perfect_geometry.xml: GT geometry and DR material
 [ CREATE MASKS FOR TEST VIDEO FRAMES ]
 - python create_frame_mask.py --data_dir /media/aakash/wd1/DATASETS/FISH --frames_dir video_frames_test --output_dir video_frames_test_mask --model_path U2Net/saved_models --model_name u2net
 
+[ GET ALIGNMENT VECTOR ]
+- Open the .ply model in blender
+- Copy paste the code from 'data/blender_alignment_vec.py' inside blender python texgt editor
+- Run the script
+- The output will be displayed on the command line, which is the normal vector to be aligned
+- If you dont have command line output, start blender from the command line to see it
+
 [ OPTIMIZES FOR MATERIAL FROM COLMAP GEOMETRY ]
-- python data/real_dr.py --scene_file /media/aakash/wd1/DATASETS/FISH/scene_dr.xml --data_dir /media/aakash/wd1/DATASETS/FISH/ --image_list_txt /media/aakash/wd1/DATASETS/FISH/colmap_output/dense/0/image-list.txt --epochs 20 --img_width 480 --img_height 270
+- python data/real_dr.py --scene_file /media/aakash/wd1/DATASETS/FISH/scene_dr.xml --data_dir /media/aakash/wd1/DATASETS/FISH/ --image_list_txt /media/aakash/wd1/DATASETS/FISH/colmap_output/dense/0/image-list.txt --epochs 20 --img_width 480 --img_height 270 --alignment_x 0.0 --alignment_y 1.0 --alignment_z 0.0
+- The alignment_vec_* params should be replaced with the vector obtained in the previous step
 
 - MAKE TRAIN DIRECTORY (EXAMPLE 'B,Diff,Cm')
   - Make 'train' and 'test' subdirectories

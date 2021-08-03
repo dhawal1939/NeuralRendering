@@ -1,4 +1,4 @@
-import torch, os, sys, cv2, json, argparse, random, glob, struct, math, time
+import torch, os, sys, cv2, json, argparse, random, glob, struct, math, time, trimesh
 import torch.nn as nn
 from torch.nn import init
 import functools
@@ -55,6 +55,9 @@ if __name__ == '__main__':
     parser.add_argument('--img_width', type=int, default=512)
     parser.add_argument('--img_height', type=int, default=512)
     parser.add_argument('--epochs', type=int, default=50)
+    parser.add_argument('--alignment_x', type=float, default=0.0)
+    parser.add_argument('--alignment_y', type=float, default=1.0)
+    parser.add_argument('--alignment_z', type=float, default=0.0)
 
     args = parser.parse_args()
 
@@ -70,6 +73,13 @@ if __name__ == '__main__':
     img_list = []
     for l in img_list_file:
         img_list.append(l)
+    
+    alignment_vec = np.array([args.alignment_x, args.alignment_y, args.alignment_z], dtype=np.float)
+    from_vec = np.array([0.0, 1.0, 0.0])
+    env_pose = trimesh.geometry.align_vectors(from_vec, alignment_vec)
+    env_pose = env_pose.flatten()
+    env_pose = ' '.join([str(elem) for elem in env_pose])
+    print(env_pose)
 
     c = 0
     for epoch in range(0, 2):
@@ -83,21 +93,25 @@ if __name__ == '__main__':
 
             identifier = img_name.replace('.png', '').replace('.jpg', '').replace('.JPG', '').replace('image', '')
 
-            print('%s/video_frames_mask/%s.png' % (args.data_dir, identifier))
+            # print('%s/video_frames_mask/%s.png' % (args.data_dir, identifier))
 
             gt = load_image('%s/video_frames/%s' % (args.data_dir, img_name), (args.img_width, args.img_height))
-            mask = load_image('%s/video_frames_mask/%s.png' % (args.data_dir, identifier), (args.img_width, args.img_height))
+            # mask = load_image('%s/video_frames_mask/%s.png' % (args.data_dir, identifier), (args.img_width, args.img_height))
 
-            gt = gt * mask
-            print('%s/colmap_output/' % args.data_dir, img_path, 'new_sparse')
+            # gt = gt * mask
+            # print('%s/colmap_output/' % args.data_dir, img_path, 'new_sparse')
 
             p, focal_length, og_width, og_height = camera_pose('%s/colmap_output/' % args.data_dir, img_path, 'new_sparse')
+            # p[11] = 1.8
+            print(p.reshape(4, 4)[:, 3:])
             pose = ' '.join([str(elem) for elem in p])
+            eye = np.eye(4).flatten()
+            eye = ' '.join([str(elem) for elem in eye])
 
             estimated_f = math.sqrt( pow(args.sensor_width, 2) + pow(args.sensor_height, 2) ) * focal_length / math.sqrt( pow(og_width, 2) + pow(og_height, 2) )
             focal_length = estimated_f * 34.6 / args.sensor_width
 
-            scene = load_file(args.scene_file, integrator='path', focal_length=str(focal_length)+'mm', poses=pose, envmap_pose=pose, \
+            scene = load_file(args.scene_file, integrator='path', focal_length=str(focal_length)+'mm', poses=pose, envmap_pose=env_pose, \
                         spp=8, width=args.img_width, height=args.img_height)
             # scene = load_file(args.scene_file, integrator='path', focal_length='35mm', poses=pose, envmap_pose=pose, \
             #             spp=8, width=args.img_width, height=args.img_height)
@@ -114,7 +128,7 @@ if __name__ == '__main__':
             for si in range(args.epochs):
                 # Perform a differentiable rendering of the scene
                 image = render(scene, optimizer=opt, unbiased=True, spp=8)
-                image = image * mask.flatten()
+                # image = image * mask.flatten()
 
                 if(i%10 == 0 and si == 0):
                     gt_ = (gt**(1.0/2.2) ) * 255.0
