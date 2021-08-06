@@ -4,3 +4,5 @@ __pycache__/
 *npy
 *pt
 *tfrecords
+.idea/
+U2Net/
