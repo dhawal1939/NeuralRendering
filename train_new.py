@@ -119,7 +119,8 @@ def main():
             optimizer.zero_grad()
             RGB_texture, preds, _, cos_t = model(wi.cuda(), cos_t.cuda(), envmap.cuda(), uv_maps.cuda(),
                                                           extrinsics.cuda())
-            loss = criterion(preds, images.cuda())
+                                                          
+            loss = criterion(preds, images.cuda()) + torch.mean(RGB_texture-0.5)
             loss.backward()
             optimizer.step()
 
@@ -143,22 +144,22 @@ def main():
             RGB_texture, preds, preds_, cos_t = model(wi.cuda(), cos_t.cuda(), envmap.cuda(), uv_maps.cuda(),
                                                           extrinsics.cuda())
 
-            loss = criterion(preds, images.cuda())
+            loss = criterion(preds, images.cuda()) + torch.mean(RGB_texture-0.5)
             test_loss += loss.item()
 
-            output = np.clip(preds[0, :, :, :].detach().cpu().numpy(), 0, 1) #** (1.0 / 2.2)
+            output = np.clip(preds[0, :, :, :].detach().cpu().numpy(), 0, 1) ** (1.0 / 2.2)
             output = output * 255.0
             output = output.astype(np.uint8)
 
-            gt = np.clip(images[0, :, :, :].numpy(), 0, 1) #** (1.0 / 2.2)
+            gt = np.clip(images[0, :, :, :].numpy(), 0, 1) ** (1.0 / 2.2)
             gt = gt * 255.0
             gt = gt.astype(np.uint8)
 
-            albedo = np.clip(RGB_texture[0, :, :, :].detach().cpu().numpy(), 0, 1) #** (1.0 / 2.2)
+            albedo = np.clip(RGB_texture[0, :, :, :].detach().cpu().numpy(), 0, 1) ** (1.0 / 2.2)
             albedo = albedo * 255.0
             albedo = albedo.astype(np.uint8)
 
-            preds_ = np.clip(preds_[0, :, :, :].detach().cpu().numpy(), 0, 1) #** (1.0 / 2.2)
+            preds_ = np.clip(preds_[0, :, :, :].detach().cpu().numpy(), 0, 1) ** (1.0 / 2.2)
             preds_ *= 255.
             preds_ = preds_.astype('uint8')
             all_vis.append(preds_)

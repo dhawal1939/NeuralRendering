@@ -21,7 +21,7 @@ class UVDataset(Dataset):
         self.view_direction = view_direction
 
         self.envmap = cv2.cvtColor(cv2.imread('%s/envmap.jpg' % dir), cv2.COLOR_BGR2RGB).astype(np.float)
-        self.envmap = (self.envmap / 255.0) #** (2.2)
+        self.envmap = (self.envmap / 255.0) ** (2.2)
 
     def __len__(self):
         return len(self.idx_list)
@@ -78,7 +78,7 @@ class UVDataset(Dataset):
             print('inf in dataset')
 
         img, uv_map, transform = augment_new(img, uv_map, transform, self.crop_size)
-        # img = img ** (2.2)
+        img = img ** (2.2)
 
         extrinsics = np.load(os.path.join(self.dir, 'extrinsics/' + self.idx_list[idx] + '.npy'))
 
