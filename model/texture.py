@@ -12,7 +12,7 @@ class SingleLayerTexture(nn.Module):
     def forward(self, x):
         batch = x.shape[0]
         x = x * 2.0 - 1.0
-        y = F.grid_sample(self.layer1.repeat(batch,1,1,1), x)
+        y = F.grid_sample(self.layer1.repeat(batch,1,1,1), x, align_corners=True)
         return y
 
 
@@ -31,10 +31,10 @@ class LaplacianPyramid(nn.Module):
     def forward(self, x):
         batch = x.shape[0]
         x = x * 2.0 - 1.0
-        y1 = F.grid_sample(self.layer1.repeat(batch,1,1,1), x)
-        y2 = F.grid_sample(self.layer2.repeat(batch,1,1,1), x)
-        y3 = F.grid_sample(self.layer3.repeat(batch,1,1,1), x)
-        y4 = F.grid_sample(self.layer4.repeat(batch,1,1,1), x)
+        y1 = F.grid_sample(self.layer1.repeat(batch,1,1,1), x, align_corners=True)
+        y2 = F.grid_sample(self.layer2.repeat(batch,1,1,1), x, align_corners=True)
+        y3 = F.grid_sample(self.layer3.repeat(batch,1,1,1), x, align_corners=True)
+        y4 = F.grid_sample(self.layer4.repeat(batch,1,1,1), x, align_corners=True)
         y = y1 + y2 + y3 + y4
         return y
 
