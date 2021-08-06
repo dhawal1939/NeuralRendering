@@ -86,7 +86,7 @@ if __name__ == '__main__':
 
         random.shuffle(img_list)
         for i, img_path in enumerate(img_list):            
-            init_lr = 0.01
+            init_lr = 1e-3
             
             img_path = img_path.replace('\n', '')
             img_name = img_path.split('/')[-1]
@@ -111,7 +111,7 @@ if __name__ == '__main__':
             estimated_f = math.sqrt( pow(args.sensor_width, 2) + pow(args.sensor_height, 2) ) * focal_length / math.sqrt( pow(og_width, 2) + pow(og_height, 2) )
             focal_length = estimated_f * 34.6 / args.sensor_width
 
-            scene = load_file(args.scene_file, integrator='path', focal_length=str(focal_length)+'mm', poses=pose, envmap_pose=env_pose, \
+            scene = load_file(args.scene_file, integrator='path', focal_length=str(focal_length)+'mm', poses=pose, envmap_pose=eye, \
                         spp=8, width=args.img_width, height=args.img_height)
             # scene = load_file(args.scene_file, integrator='path', focal_length='35mm', poses=pose, envmap_pose=pose, \
             #             spp=8, width=args.img_width, height=args.img_height)

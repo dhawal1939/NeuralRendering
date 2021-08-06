@@ -383,6 +383,37 @@ def computeSHFromImageAfterRotate(envmap, cameraLoc, cameraUp, isInv=False):
     coef = computeSHFromImage(envmapRot)
     return coef
 
+def computeImageAfterRotate(envmap, mat):
+
+    rx, ry, rz = mat[:, 0], mat[:, 1], mat[:, 2]
+
+    # envmapRot = np.zeros((512, 1024, 3), dtype=np.float32)
+    envmapRot = np.zeros((300, 600, 3), dtype=np.float32)
+    height, width = envmapRot.shape[0], envmapRot.shape[1]
+    for r in range(0, height):
+        for c in range(0, width):
+            theta = r / float(height-1) * np.pi
+            phi = c / float(width) * np.pi * 2 - np.pi
+            x = np.sin(theta) * np.cos(phi)
+            y = np.sin(theta) * np.sin(phi)
+            z = np.cos(theta)
+            coord = x * rx + y * ry + z * rz
+            nx, ny, nz = coord[0], coord[1], coord[2]
+            thetaNew = np.arccos(nz)
+            nx = nx / (np.sqrt(1-nz*nz) + 1e-12)
+            ny = ny / (np.sqrt(1-nz*nz) + 1e-12)
+            nx = np.clip(nx, -1, 1)
+            ny = np.clip(ny, -1, 1)
+            nz = np.clip(nz, -1, 1)
+            phiNew = np.arccos(nx)
+            if ny < 0:
+                phiNew = - phiNew
+            u, v = angleToUV(thetaNew, phiNew)
+            color = uvToEnvmap(envmap, u, v)
+            envmapRot[r, c, :] = color
+
+    return envmapRot
+
 
 
 

@@ -33,7 +33,7 @@ class up(nn.Module):
                 self.conv = nn.Sequential(
                     nn.ConvTranspose2d(in_ch, out_ch, 4, stride=2, padding=1, output_padding=output_pad),
                     # nn.InstanceNorm2d(out_ch),
-                    nn.Sigmoid()
+                    nn.ReLU()
                 )
         else:
             self.conv = nn.Sequential(
@@ -96,15 +96,15 @@ class UNet(nn.Module):
 
     def __init__(self, input_channels, output_channels):
         super(UNet, self).__init__()
-        self.down1 = down(input_channels, 64)
-        self.down2 = down(64, 128)
-        self.down3 = down(128, 256)
-        self.down4 = down(256, 512)
+        self.down1 = down(input_channels, 26)
+        self.down2 = down(26, 26)
+        self.down3 = down(26, 26)
+        self.down4 = down(26, 26)
 
-        self.up1 = up(512, 256, output_pad=1, concat=False)
-        self.up2 = up(512, 128)
-        self.up3 = up(256, 64)
-        self.up4 = up(128, output_channels, final=True)
+        self.up1 = up(26, 26, output_pad=1, concat=False)
+        self.up2 = up(52, 26)
+        self.up3 = up(52, 26)
+        self.up4 = up(52, output_channels, final=True)
 
     # Adjusting for the input of real data, 176x176
     def forward(self, x):

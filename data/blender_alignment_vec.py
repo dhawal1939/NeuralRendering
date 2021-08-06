@@ -11,6 +11,9 @@ normal = Vector((0,0,0))
 for v in selected_verts:    
     normal += v.normal
 
-normal.z = -normal.z
+final = Vector((0, 0, 0))
+final.x = normal.x
+final.y = normal.z
+final.z = -normal.y
 
-print(normal.normalized())
+print(final.normalized())
