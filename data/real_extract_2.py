@@ -107,19 +107,19 @@ if __name__ == '__main__':
     # Rotate envmap according to COLMAP mesh
     ########################################
 
-    envmap = cv2.imread(args.envmap_input)
-    alignment_vec = np.array([args.alignment_x, args.alignment_y, args.alignment_z], dtype=np.float)
+    # envmap = cv2.imread(args.envmap_input)
+    # alignment_vec = np.array([args.alignment_x, args.alignment_y, args.alignment_z], dtype=np.float)
 
-    env_pose = trimesh.geometry.align_vectors(np.array([0.0, -1.0, 0.0]), np.array([0.0, 0.0, 1.0]))[:3, :3]
-    envmap_out = computeImageAfterRotate(envmap, env_pose)
+    # env_pose = trimesh.geometry.align_vectors(np.array([0.0, -1.0, 0.0]), np.array([0.0, 0.0, 1.0]))[:3, :3]
+    # envmap_out = computeImageAfterRotate(envmap, env_pose)
 
-    env_pose = trimesh.geometry.align_vectors(np.array([1.0, 0.0, 0.0]), np.array([0.0, -1.0, 0.0]))[:3, :3]
-    envmap_out = computeImageAfterRotate(envmap_out, env_pose)
+    # env_pose = trimesh.geometry.align_vectors(np.array([1.0, 0.0, 0.0]), np.array([0.0, -1.0, 0.0]))[:3, :3]
+    # envmap_out = computeImageAfterRotate(envmap_out, env_pose)
 
-    env_pose = trimesh.geometry.align_vectors(alignment_vec, np.array([0.0, 0.0, 1.0]))[:3, :3]
-    envmap_out = computeImageAfterRotate(envmap_out, env_pose)
+    # env_pose = trimesh.geometry.align_vectors(alignment_vec, np.array([0.0, 0.0, 1.0]))[:3, :3]
+    # envmap_out = computeImageAfterRotate(envmap_out, env_pose)
     
-    cv2.imwrite('%s/B,Diff,Cm/envmap.jpg' % args.data_dir, envmap_out)
+    # cv2.imwrite('%s/B,Diff,Cm/envmap.jpg' % args.data_dir, envmap_out)
 
     ########################################
     # Save UV and transformation matrices

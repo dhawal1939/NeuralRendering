@@ -96,4 +96,6 @@ class PipeLine(nn.Module):
         final = albedo_ * cos_t * envmap * vis
         final = 2.0 / float(self.samples) * torch.sum(final, dim=2)  # 10 - samples
 
-        return albedo, final, vis, cos_t
+        albedo_tex = torch.cat((self.albedo_tex.textures[0].layer1, self.albedo_tex.textures[1].layer1, self.albedo_tex.textures[2].layer1), dim=1)
+
+        return albedo_tex, final, vis, cos_t

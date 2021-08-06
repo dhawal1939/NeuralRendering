@@ -160,7 +160,7 @@ def main():
             albedo = albedo * 255.0
             albedo = albedo.astype(np.uint8)
 
-            vis = np.clip(vis_[0, :, :, :].detach().cpu().numpy(), 0, 1) ** (1. / 2.2)
+            vis = np.clip(vis_[0, :, :, :].detach().cpu().numpy(), 0, 1)
             vis *= 255.
             vis = vis.astype('uint8')
             all_vis.append(vis)

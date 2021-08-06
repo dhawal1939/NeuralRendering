@@ -14,7 +14,7 @@ class UVDataset(Dataset):
         for i in range(len(self.idx_list)):
             self.idx_list[i] = self.idx_list[i].replace('.png', '').replace('image', '')
 
-        self.tiny_number = 10e-8
+        self.tiny_number = 1e-8
         self.dir = dir
         self.samples = samples
         self.crop_size = (H, W)
@@ -27,9 +27,9 @@ class UVDataset(Dataset):
         return len(self.idx_list)
 
     def sample_hemishpere(self, n):
-        eta_1, eta_2 = np.random.uniform(low=0, high=1., size=n), np.random.uniform(low=0, high=1., size=n)
+        eta_1, eta_2 = np.random.uniform(low=self.tiny_number, high=1.-self.tiny_number, size=n), np.random.uniform(low=self.tiny_number, high=1.-self.tiny_number, size=n)
 
-        z = eta_1 + self.tiny_number
+        z = eta_1
         phi = 2 * np.pi * eta_2
 
         rhs = np.maximum(0.0, 1 - np.power(z, 2))
