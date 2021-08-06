@@ -117,10 +117,10 @@ def main():
 
             step += images.shape[0]
             optimizer.zero_grad()
-            RGB_texture, preds, _, cos_t = model(wi.cuda(), cos_t.cuda(), envmap.cuda(), uv_maps.cuda(),
+            RGB_texture, RGB_texture_proj, preds, _, cos_t = model(wi.cuda(), cos_t.cuda(), envmap.cuda(), uv_maps.cuda(),
                                                           extrinsics.cuda())
                                                           
-            loss = criterion(preds, images.cuda()) + torch.mean( torch.abs(RGB_texture-0.5) )
+            loss = criterion(preds, images.cuda()) + torch.mean( torch.abs(RGB_texture_proj-0.5) )
             loss.backward()
             optimizer.step()
 
@@ -141,10 +141,10 @@ def main():
 
             images, uv_maps, extrinsics, wi, cos_t, envmap = samples
 
-            RGB_texture, preds, preds_, cos_t = model(wi.cuda(), cos_t.cuda(), envmap.cuda(), uv_maps.cuda(),
+            RGB_texture, RGB_texture_proj, preds, preds_, cos_t = model(wi.cuda(), cos_t.cuda(), envmap.cuda(), uv_maps.cuda(),
                                                           extrinsics.cuda())
 
-            loss = criterion(preds, images.cuda()) + torch.mean( torch.abs(RGB_texture-0.5) )
+            loss = criterion(preds, images.cuda()) + torch.mean( torch.abs(RGB_texture_proj-0.5) )
             test_loss += loss.item()
 
             output = np.clip(preds[0, :, :, :].detach().cpu().numpy(), 0, 1) ** (1.0 / 2.2)

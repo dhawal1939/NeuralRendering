@@ -103,4 +103,4 @@ class PipeLine(nn.Module):
 
         albedo_tex = torch.cat((self.albedo_tex.textures[0].layer1, self.albedo_tex.textures[1].layer1, self.albedo_tex.textures[2].layer1), dim=1)
 
-        return albedo_tex, final, final_, cos_t
+        return albedo_tex, albedo, final, final_, cos_t

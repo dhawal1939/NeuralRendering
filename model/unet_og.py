@@ -104,7 +104,7 @@ class UNet(nn.Module):
         self.up1 = up(26, 26, output_pad=1, concat=False)
         self.up2 = up(52, 26)
         self.up3 = up(52, 26)
-        self.up4 = up(52, output_channels, final=True)
+        self.up4 = up(52, output_channels, final=True, tanh=True)
 
     # Adjusting for the input of real data, 176x176
     def forward(self, x):
