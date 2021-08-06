@@ -32,16 +32,20 @@ class UVDataset(Dataset):
         z = eta_1 + self.tiny_number
         phi = 2 * np.pi * eta_2
 
-        x, y = np.cos(phi) * np.sqrt(1 - np.power(z, 2)), np.sin(phi) * np.sqrt(1 - np.power(z, 2))
+        rhs = np.maximum(0.0, 1 - np.power(z, 2))
+        x, y = np.cos(phi) * np.sqrt(rhs), np.sin(phi) * np.sqrt(rhs)
 
-        s = np.stack((x, y, z), axis=1)
+        # s = np.stack((x, y, z), axis=1)
+        s = np.stack((x, y, z), axis=2)
 
-        s /= np.linalg.norm(s, axis=1).reshape(-1, 1)
+        # s /= np.linalg.norm(s, axis=1).reshape(-1, 1)
+        # return torch.from_numpy(s).type(torch.float)
 
-        return torch.from_numpy(s).type(torch.float)
+        s /= np.linalg.norm(s, axis=2, keepdims=True)
+        return s
 
     def convert_spherical(self, wi):
-        print(wi[:, :, 2:3].min(), wi[:, :, 2:3].max())
+        # print(wi[:, :, 2:3].min(), wi[:, :, 2:3].max())
         theta = np.arccos(wi[:, :, 2:3])
         phi = np.arctan2(wi[:, :, 1:2], wi[:, :, 0:1])
 
@@ -78,8 +82,9 @@ class UVDataset(Dataset):
 
         transform = torch.reshape(transform, (-1, 3, 3))  # [hxw, 3, 3]
 
-        wi = self.sample_hemishpere(self.samples)  # [self.samples, 3]
-        wi = np.tile(wi, (transform.shape[0], 1, 1))  # [hxw, self.samples, 3]
+        # wi = self.sample_hemishpere(self.samples)  # [self.samples, 3]
+        # wi = np.tile(wi, (transform.shape[0], 1, 1))  # [hxw, self.samples, 3]
+        wi = self.sample_hemishpere( (transform.shape[0], self.samples) )
         cos_t = torch.from_numpy(wi[:, :, 2]).type(torch.float)  # [hxw, self.samples]
 
         wi = np.transpose(transform @ np.transpose(wi, (0, 2, 1)), (0, 2, 1))  # [hxw, samples, 3]

@@ -198,7 +198,7 @@ scene_dr_perfect_geometry.xml: GT geometry and DR material
 - python data/real_extract_2.py --scene_file /media/aakash/wd1/DATASETS/FISH/scene.xml --data_dir /media/aakash/wd1/DATASETS/FISH/ --output_dir /media/aakash/wd1/DATASETS/FISH/B,Diff,Cm/ --train_image_list_txt /media/aakash/wd1/DATASETS/FISH/colmap_output/dense/0/image-list.txt --test_image_list_txt /media/aakash/wd1/DATASETS/FISH/colmap_output/colmap_output_test/dense/0/image-list.txt --img_width 960 --img_height 540 --envmap_input /media/aakash/wd1/DATASETS/FISH/envmap.JPG
 
 [ TRAIN NETWORK ]
-- python train_sh.py --data /ssd_scratch/cvit/darthgera123/FISH/B,Diff,Cm/ --checkpoint /scratch/darthgera123/FISH/checkpoints/ --logdir /scratch/darthgera123/FISH/logs/ --epoch 50 --epoch_per_checkpoint 5
+- python train_new.py --data /media/aakashkt/wd1/NEURAL_RENDERING_DATASETS/WOMAN/B,Diff,Cm/ --checkpoint ./ --logdir ./ --epoch 1000 --epoch_per_checkpoint 5
 
 - Copy the trained model weights to some directory
 
