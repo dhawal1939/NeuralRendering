@@ -64,7 +64,7 @@ class UNetSH(nn.Module):
         self.up1 = up(512, 256, output_pad=1, concat=False)
         self.up2 = up(512, 128)
         self.up3 = up(256, 64)
-        self.up4 = up(128, output_channels, final=True, tanh=False)
+        self.up4 = up(128, output_channels, final=True, tanh=True)
 
     # Adjusting for the input of real data, 176x176
     def forward(self, x):

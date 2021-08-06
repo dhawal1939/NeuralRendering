@@ -117,7 +117,7 @@ def main():
 
             step += images.shape[0]
             optimizer.zero_grad()
-            RGB_texture, preds, visibility, cos_t = model(wi.cuda(), cos_t.cuda(), envmap.cuda(), uv_maps.cuda(),
+            RGB_texture, preds, _, cos_t = model(wi.cuda(), cos_t.cuda(), envmap.cuda(), uv_maps.cuda(),
                                                           extrinsics.cuda())
             loss = criterion(preds, images.cuda())
             loss.backward()
@@ -140,30 +140,28 @@ def main():
 
             images, uv_maps, extrinsics, wi, cos_t, envmap = samples
 
-            RGB_texture, preds, visibility, cos_t = model(wi.cuda(), cos_t.cuda(), envmap.cuda(), uv_maps.cuda(),
+            RGB_texture, preds, preds_, cos_t = model(wi.cuda(), cos_t.cuda(), envmap.cuda(), uv_maps.cuda(),
                                                           extrinsics.cuda())
-
-            vis_ = torch.sum(visibility, dim=2) / visibility.shape[2]
 
             loss = criterion(preds, images.cuda())
             test_loss += loss.item()
 
-            output = np.clip(preds[0, :, :, :].detach().cpu().numpy(), 0, 1) ** (1.0 / 2.2)
+            output = np.clip(preds[0, :, :, :].detach().cpu().numpy(), 0, 1) #** (1.0 / 2.2)
             output = output * 255.0
             output = output.astype(np.uint8)
 
-            gt = np.clip(images[0, :, :, :].numpy(), 0, 1) ** (1.0 / 2.2)
+            gt = np.clip(images[0, :, :, :].numpy(), 0, 1) #** (1.0 / 2.2)
             gt = gt * 255.0
             gt = gt.astype(np.uint8)
 
-            albedo = np.clip(RGB_texture[0, :, :, :].detach().cpu().numpy(), 0, 1) ** (1.0 / 2.2)
+            albedo = np.clip(RGB_texture[0, :, :, :].detach().cpu().numpy(), 0, 1) #** (1.0 / 2.2)
             albedo = albedo * 255.0
             albedo = albedo.astype(np.uint8)
 
-            vis = np.clip(vis_[0, :, :, :].detach().cpu().numpy(), 0, 1)
-            vis *= 255.
-            vis = vis.astype('uint8')
-            all_vis.append(vis)
+            preds_ = np.clip(preds_[0, :, :, :].detach().cpu().numpy(), 0, 1) #** (1.0 / 2.2)
+            preds_ *= 255.
+            preds_ = preds_.astype('uint8')
+            all_vis.append(preds_)
 
             uv_maps = uv_maps.permute(0, 3, 1, 2)
             uv = np.clip(uv_maps[0, :, :, :].numpy(), 0, 1)
@@ -186,7 +184,7 @@ def main():
         writer.add_image('test/gt', all_gt[ridx], test_step)
         writer.add_image('test/albedo', all_albedo[ridx], test_step)
         writer.add_image('test/uv', all_uv[ridx], test_step)
-        writer.add_image('test/visibility', all_vis[ridx], test_step)
+        writer.add_image('test/output-visibility', all_vis[ridx], test_step)
 
         test_step += 1
 

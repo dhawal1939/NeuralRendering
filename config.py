@@ -13,8 +13,8 @@ LOG_DIR = ''
 TRAIN_SET = ['{:05d}'.format(i) for i in range(10)]
 EPOCH = 1000
 BATCH_SIZE = 4
-CROP_W = 512
-CROP_H = 512
+CROP_W = 256
+CROP_H = 256
 LEARNING_RATE = 1e-3
 BETAS = '0.9, 0.999'
 L2_WEIGHT_DECAY = '0.01, 0.001, 0.0001, 0'
@@ -23,7 +23,7 @@ LOAD = None
 LOAD_STEP = 0
 EPOCH_PER_CHECKPOINT = 10
 MASK_EPOCH = 15
-SAMPLES = 12
+SAMPLES = 50
 
 # =============== Test Configurations ============
 TEST_LOAD = ''

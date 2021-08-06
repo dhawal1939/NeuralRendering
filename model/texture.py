@@ -7,7 +7,7 @@ import numpy as np
 class SingleLayerTexture(nn.Module):
     def __init__(self, W, H):
         super(SingleLayerTexture, self).__init__()
-        self.layer1 = nn.Parameter(torch.FloatTensor(1, 1, W, H))
+        self.layer1 = nn.Parameter(torch.zeros((1, 1, W, H), dtype=torch.float))
 
     def forward(self, x):
         batch = x.shape[0]

@@ -21,7 +21,7 @@ class UVDataset(Dataset):
         self.view_direction = view_direction
 
         self.envmap = cv2.cvtColor(cv2.imread('%s/envmap.jpg' % dir), cv2.COLOR_BGR2RGB).astype(np.float)
-        self.envmap = (self.envmap / 255.0) ** (2.2)
+        self.envmap = (self.envmap / 255.0) #** (2.2)
 
     def __len__(self):
         return len(self.idx_list)
@@ -64,6 +64,8 @@ class UVDataset(Dataset):
         transform = np.load(os.path.join(self.dir, 'transform/' + self.idx_list[idx] + '.npy'))  # [540, 960, 9]
         nan_pos = np.isnan(transform)
         transform[nan_pos] = 0
+        inf_pos = np.isinf(transform)
+        transform[inf_pos] = 0
 
         uv_map = np.load(os.path.join(self.dir, 'uv/' + self.idx_list[idx] + '.npy'))
         nan_pos = np.isnan(uv_map)
@@ -76,7 +78,7 @@ class UVDataset(Dataset):
             print('inf in dataset')
 
         img, uv_map, transform = augment_new(img, uv_map, transform, self.crop_size)
-        img = img ** (2.2)
+        # img = img ** (2.2)
 
         extrinsics = np.load(os.path.join(self.dir, 'extrinsics/' + self.idx_list[idx] + '.npy'))
 
@@ -88,6 +90,7 @@ class UVDataset(Dataset):
         cos_t = torch.from_numpy(wi[:, :, 2]).type(torch.float)  # [hxw, self.samples]
 
         wi = np.transpose(transform @ np.transpose(wi, (0, 2, 1)), (0, 2, 1))  # [hxw, samples, 3]
+        wi /= ( np.linalg.norm(wi, axis=2, keepdims=True) + self.tiny_number)
         wi = self.convert_spherical(wi)  # [hxw, samples, 2]
 
         sampled_env = self.sample_envmap(wi)  # [hxw, self.samples, 3]
