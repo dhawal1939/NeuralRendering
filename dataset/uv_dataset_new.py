@@ -3,6 +3,7 @@ import os, cv2
 from PIL import Image, ImageOps
 from torch.utils.data import Dataset
 import torch
+import time
 
 from util import augment_new, augment_eval, augment_og, augment_center_crop, augment_center_crop_mask
 
@@ -22,41 +23,43 @@ class UVDataset(Dataset):
 
         self.envmap = cv2.cvtColor(cv2.imread('%s/envmap.jpg' % dir), cv2.COLOR_BGR2RGB).astype(np.float)
         self.envmap = (self.envmap / 255.0) ** (2.2)
+        # self.envmap = torch.from_numpy(self.envmap).cuda()
 
     def __len__(self):
         return len(self.idx_list)
 
     def sample_hemishpere(self, n):
-        eta_1, eta_2 = np.random.uniform(low=self.tiny_number, high=1.-self.tiny_number, size=n), np.random.uniform(low=self.tiny_number, high=1.-self.tiny_number, size=n)
+        eta_1, eta_2 = torch.rand(n, dtype=torch.float32).cuda(), torch.rand(n, dtype=torch.float32).cuda()
 
-        z = eta_1
+        z = eta_1 + self.tiny_number
         phi = 2 * np.pi * eta_2
+        sin_theta = torch.clip(1 - torch.pow(z, 2), min=0., max=np.inf)
 
-        rhs = np.maximum(0.0, 1 - np.power(z, 2))
-        x, y = np.cos(phi) * np.sqrt(rhs), np.sin(phi) * np.sqrt(rhs)
-
+        x, y = torch.cos(phi) * sin_theta, torch.sin(phi) * sin_theta
         # s = np.stack((x, y, z), axis=1)
-        s = np.stack((x, y, z), axis=2)
+
+        s = torch.stack((x, y, z), dim=2)
 
         # s /= np.linalg.norm(s, axis=1).reshape(-1, 1)
         # return torch.from_numpy(s).type(torch.float)
 
-        s /= np.linalg.norm(s, axis=2, keepdims=True)
+        s /= torch.linalg.norm(s, dim=2, keepdims=True)
         return s
 
     def convert_spherical(self, wi):
         # print(wi[:, :, 2:3].min(), wi[:, :, 2:3].max())
-        theta = np.arccos(wi[:, :, 2:3])
-        phi = np.arctan2(wi[:, :, 1:2], wi[:, :, 0:1])
+        theta = torch.arccos(wi[:, :, 2:3])
+        phi = torch.atan2(wi[:, :, 1:2], wi[:, :, 0:1])
 
-        return torch.from_numpy(np.concatenate((theta, phi), axis=2)).type(torch.float)
+        return torch.cat((theta, phi), dim=2)
+
 
     def sample_envmap(self, wi):
         wi[:, :, 0] = wi[:, :, 0] / np.pi * self.envmap.shape[0]
         wi[:, :, 1] = wi[:, :, 1] / (2 * np.pi) * self.envmap.shape[1]
         wi = wi.type(torch.uint8)
 
-        return self.envmap[wi[:, :, 0].reshape(-1), wi[:, :, 1].reshape(-1), :].reshape(wi.shape[0], 3, -1)
+        return torch.from_numpy(self.envmap[wi[:, :, 0].reshape(-1).cpu().numpy(), wi[:, :, 1].reshape(-1).cpu().numpy(), :].reshape(wi.shape[0], 3, -1)).cuda()
 
     def __getitem__(self, idx):
         img = Image.open(os.path.join(self.dir, 'frames/' + self.idx_list[idx] + '.png'), 'r')
@@ -82,15 +85,16 @@ class UVDataset(Dataset):
 
         extrinsics = np.load(os.path.join(self.dir, 'extrinsics/' + self.idx_list[idx] + '.npy'))
 
-        transform = torch.reshape(transform, (-1, 3, 3))  # [hxw, 3, 3]
+        transform = torch.reshape(transform, (-1, 3, 3)).cuda()  # [hxw, 3, 3]
 
         # wi = self.sample_hemishpere(self.samples)  # [self.samples, 3]
         # wi = np.tile(wi, (transform.shape[0], 1, 1))  # [hxw, self.samples, 3]
-        wi = self.sample_hemishpere( (transform.shape[0], self.samples) )
-        cos_t = torch.from_numpy(wi[:, :, 2]).type(torch.float)  # [hxw, self.samples]
 
-        wi = np.transpose(transform @ np.transpose(wi, (0, 2, 1)), (0, 2, 1))  # [hxw, samples, 3]
-        wi /= ( np.linalg.norm(wi, axis=2, keepdims=True) + self.tiny_number)
+        wi = self.sample_hemishpere((transform.shape[0], self.samples))
+        cos_t = wi[:, :, 2].type(torch.float32)  # [hxw, self.samples]
+
+        wi = (transform @ wi.permute(0, 2, 1)).permute(0, 2, 1)  # [hxw, samples, 3]
+        wi /= (torch.linalg.norm(wi, dim=2, keepdims=True) + self.tiny_number)
         wi = self.convert_spherical(wi)  # [hxw, samples, 2]
 
         sampled_env = self.sample_envmap(wi)  # [hxw, self.samples, 3]
@@ -98,7 +102,7 @@ class UVDataset(Dataset):
         wi = wi.reshape(self.crop_size[0], self.crop_size[1], self.samples, 2).permute(3, 2, 0, 1)
         cos_t = cos_t.reshape(self.crop_size[0], self.crop_size[1], self.samples).permute(2, 0, 1)
         sampled_env = sampled_env.reshape(self.crop_size[0], self.crop_size[1], self.samples, 3)
-        sampled_env = np.transpose(sampled_env, (3, 2, 0, 1))
+        sampled_env = sampled_env.permute(3, 2, 0, 1)
 
         return img.type(torch.float), uv_map.type(torch.float), torch.from_numpy(extrinsics).type(torch.float), \
-               wi, cos_t, torch.from_numpy(sampled_env).type(torch.float)
+               wi, cos_t, sampled_env
