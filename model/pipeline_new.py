@@ -66,27 +66,32 @@ class PipeLine(nn.Module):
 
     def forward(self, *args):
         wi, cos_t, envmap, uv_map, extrinsics = args
-        wi = wi.view(-1, 20, wi.shape[3], wi.shape[4])
-        cos_t = torch.unsqueeze(cos_t, dim=1)
-        cos_t = torch.tile(cos_t, (1, 3, 1, 1, 1))
+
+        # wi : [b, 2, samples, h, w]
+        # cos_t : [b, samples, h, w]
+        # envmap : [b, 3, samples, h, w]
+
+        wi = wi.view(-1, 20, wi.shape[3], wi.shape[4]) # [b, 2*samples, h, w]
+        cos_t = torch.unsqueeze(cos_t, dim=1) # [b, 1, samples, h, w]
+        cos_t = torch.tile(cos_t, (1, 3, 1, 1, 1)) # [b, 3, samples, h, w]
 
         # Make Diffuse BRDF
-        albedo = self.albedo_tex(uv_map)
-        albedo_ = torch.unsqueeze(albedo, dim=2)
-        albedo_ = torch.tile(albedo_, (1, 1, cos_t.shape[2], 1, 1))
+        albedo = self.albedo_tex(uv_map) # [b, 3, h, w]
+        albedo_ = torch.unsqueeze(albedo, dim=2) # [b, 3, 1, h, w]
+        albedo_ = torch.tile(albedo_, (1, 1, cos_t.shape[2], 1, 1)) # [b, 3, samples, h, w]
 
+        # Neural texture sampling
         nt = self.texture(uv_map)
         basis = self._spherical_harmonics_basis(extrinsics).cuda()
         basis = basis.view(basis.shape[0], basis.shape[1], 1, 1)
         nt[:, 3:12, :, :] = nt[:, 3:12, :, :] * basis
 
+        # NN forward
         inp = torch.cat((nt, wi), dim=1)
-        vis = self.unet(inp)
+        vis = self.unet(inp) # [b, 3*samples, h, w]
         vis = vis.reshape(-1, 3, 10, cos_t.shape[3], cos_t.shape[4])
-        # vis = torch.unsqueeze(vis, dim=1)
-        # vis = torch.tile(vis, (1, 3, 1, 1, 1))
 
         final = albedo_ * cos_t * envmap * vis
-        final = 2.0 / 10.0 * torch.sum(final, dim=2)
+        final = 2.0 / 10.0 * torch.sum(final, dim=2) # 10 - samples
 
         return albedo, final

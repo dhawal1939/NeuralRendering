@@ -125,24 +125,24 @@ if __name__ == '__main__':
     # Save UV and transformation matrices
     ########################################
 
-    # frames_dir = 'video_frames'
-    # img_list_file = sorted(open(args.train_image_list_txt, 'r'))
-    # img_list = []
-    # for l in img_list_file:
-    #     img_list.append(l)
+    frames_dir = 'video_frames'
+    img_list_file = sorted(open(args.train_image_list_txt, 'r'))
+    img_list = []
+    for l in img_list_file:
+        img_list.append(l)
 
-    # for i, img_path in enumerate(img_list):
-    #     process(args, i, img_path, frames_dir, args.output_dir+'/train/', 'colmap_output/')
+    for i, img_path in enumerate(img_list):
+        process(args, i, img_path, frames_dir, args.output_dir+'/train/', 'colmap_output/')
     
-    # # Test
-    # frames_dir = 'video_frames_test'
-    # img_list_file = sorted(open(args.test_image_list_txt, 'r'))
-    # img_list = []
-    # for l in img_list_file:
-    #     img_list.append(l)
+    # Test
+    frames_dir = 'video_frames_test'
+    img_list_file = sorted(open(args.test_image_list_txt, 'r'))
+    img_list = []
+    for l in img_list_file:
+        img_list.append(l)
 
-    # for i, img_name in enumerate(img_list):
-    #     process(args, i, img_name, frames_dir, args.output_dir+'/test/', 'colmap_output/colmap_output_test/')
+    for i, img_name in enumerate(img_list):
+        process(args, i, img_name, frames_dir, args.output_dir+'/test/', 'colmap_output/colmap_output_test/')
 
 
     

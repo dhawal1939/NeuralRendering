@@ -46,7 +46,7 @@ class UVDataset(Dataset):
     def __getitem__(self, idx):
         img = Image.open(os.path.join(self.dir, 'frames/'+self.idx_list[idx]+'.png'), 'r')
 
-        transform = np.load(os.path.join(self.dir, 'transform/'+self.idx_list[idx]+'.npy'))
+        transform = np.load(os.path.join(self.dir, 'transform/'+self.idx_list[idx]+'.npy')) # [540, 960, 9]
         nan_pos = np.isnan(transform)
         transform[nan_pos] = 0
 
@@ -65,14 +65,16 @@ class UVDataset(Dataset):
 
         extrinsics = np.load(os.path.join(self.dir, 'extrinsics/'+self.idx_list[idx]+'.npy'))
 
-        transform = torch.reshape(transform, (-1, 3, 3))
-        wi = self.sample_hemishpere(10)
-        wi = np.tile(wi, (transform.shape[0], 1, 1))
-        cos_t = torch.from_numpy(wi[:, :, 2]).type(torch.float)
-        wi = np.transpose( transform @ np.transpose(wi, (0, 2, 1)), (0, 2, 1) )
-        wi = self.convert_spherical(wi)
+        transform = torch.reshape(transform, (-1, 3, 3)) # [540*960, 3, 3]
 
-        sampled_env = self.sample_envmap(wi)
+        wi = self.sample_hemishpere(10) # [10, 3]
+        wi = np.tile(wi, (transform.shape[0], 1, 1)) # [540*960, 10, 3]
+        cos_t = torch.from_numpy(wi[:, :, 2]).type(torch.float) # [540*960, 10]
+
+        wi = np.transpose( transform @ np.transpose(wi, (0, 2, 1)), (0, 2, 1) ) # [540*960, 10, 3]
+        wi = self.convert_spherical(wi) # [540*960, 10, 2]
+
+        sampled_env = self.sample_envmap(wi) # [540*960, 10, 3]
 
         wi = wi.reshape(self.crop_size[0], self.crop_size[1], 10, 2).permute(3, 2, 0, 1)
         cos_t = cos_t.reshape(self.crop_size[0], self.crop_size[1], 10).permute(2, 0, 1)
