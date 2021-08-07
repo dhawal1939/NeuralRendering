@@ -20,9 +20,9 @@ class PipeLine(nn.Module):
         self.samples = samples
         # self.texture = Texture(W, H, feature_num, use_pyramid)
         self.texture = Texture(W, H, feature_num, use_pyramid)
-        self.albedo_tex = Texture(W, H, 3, False)
+        self.albedo_tex = Texture(W*2, H*2, 3, False)
         # self.texture = TextureMapper(texture_size=W,texture_num_ch=16,mipmap_level=4)
-        self.unet = UNet(feature_num + 2 * self.samples, self.samples)
+        self.unet = UNet(feature_num + 2 * self.samples, 3*self.samples)
 
     def _spherical_harmonics_basis(self, extrinsics):
         '''
@@ -91,15 +91,15 @@ class PipeLine(nn.Module):
         # NN forward
         inp = torch.cat((nt, wi), dim=1)
         vis = self.unet(inp)  # [b, 3*samples, h, w]  #visibility
-        vis = torch.unsqueeze(vis, dim=1)
-        vis = torch.tile(vis, (1, 3, 1, 1, 1))
-        # vis = vis.reshape(-1, 3, self.samples, cos_t.shape[3], cos_t.shape[4])
+        # vis = torch.unsqueeze(vis, dim=1)
+        # vis = torch.tile(vis, (1, 3, 1, 1, 1))
+        vis = vis.reshape(-1, 3, self.samples, cos_t.shape[3], cos_t.shape[4])
 
         final = albedo_ * cos_t * envmap * vis
         final = 2.0 / float(self.samples) * torch.sum(final, dim=2)  # 10 - samples
 
-        final_ = albedo_ * cos_t * envmap
-        final_ = 2.0 / float(self.samples) * torch.sum(final_, dim=2)  # 10 - samples
+        # final_ = albedo_ * cos_t * envmap
+        final_ = 2.0 / float(self.samples) * torch.sum(vis, dim=2)  # 10 - samples
 
         albedo_tex = torch.cat((self.albedo_tex.textures[0].layer1, self.albedo_tex.textures[1].layer1, self.albedo_tex.textures[2].layer1), dim=1)
 
