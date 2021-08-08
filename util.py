@@ -94,7 +94,7 @@ def augment_new(img, map, transform, crop_size):
 
     return img, map, transform
 
-def augment(img, mask, map, sh, crop_size):
+def augment(img, mask, forward, env, map, sh, crop_size):
     '''
     :param img:  PIL input image
     :param mask:  PIL input mask
@@ -112,21 +112,23 @@ def augment(img, mask, map, sh, crop_size):
     crop_h, crop_w = crop_size
     w1 = random.randint(0, w - crop_w)
     h1 = random.randint(0, h - crop_h)
+
     img = img.crop((w1, h1, w1 + crop_w, h1 + crop_h))
     mask = mask.crop((w1, h1, w1 + crop_w, h1 + crop_h))
     map = map[h1:h1 + crop_h, w1:w1 + crop_w, :]
-    # forward = forward.crop((w1, h1, w1 + crop_w, h1 + crop_h))
+    forward = forward.crop((w1, h1, w1 + crop_w, h1 + crop_h))
+    env = env.crop((w1, h1, w1 + crop_w, h1 + crop_h))
     sh = sh[:, h1:h1 + crop_h, w1:w1 + crop_w]
 
     # final transform
-    img, mask, map, sh = img_transform(img), img_transform(mask), \
-                                    map_transform(map), torch.from_numpy(sh)
+    img, mask, forward, env, map, sh = img_transform(img), img_transform(mask), img_transform(forward), \
+                                    img_transform(env), map_transform(map), torch.from_numpy(sh)
     
     # mask for valid uv positions
     # mask = torch.max(map, dim=2)[0].ge(-1.0+1e-6)
     # mask = mask.repeat((3,1,1))
 
-    return img, map, sh, mask
+    return img, mask, forward, env, map, sh
 
 def augment_center_crop(img, mask, map, sh, crop_size,forward):
     '''

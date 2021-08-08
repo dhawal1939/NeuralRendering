@@ -105,11 +105,17 @@ class UVDatasetSH(Dataset):
 
     def __getitem__(self, idx):
         img = Image.open(os.path.join(self.dir, 'frames/'+self.idx_list[idx]+'.png'), 'r')
+
         mask = Image.open(os.path.join(self.dir, 'mask/'+self.idx_list[idx]+'.png'), 'r')
         mask = ImageOps.grayscale(mask)
         mask = mask.point(lambda p: p > 0.8*255 and 255)
-        # forward = Image.open(os.path.join(self.dir, 'forward/'+self.idx_list[idx]+'.png'), 'r')
+
+        forward = Image.open(os.path.join(self.dir, 'forward/'+self.idx_list[idx]+'.png'), 'r')
+
+        env = Image.open(os.path.join(self.dir, 'env/'+self.idx_list[idx]+'.png'), 'r')
+
         sh = np.transpose( np.load(os.path.join(self.dir, 'sh/'+self.idx_list[idx]+'.npy')), (2, 0, 1) )
+
         uv_map = np.load(os.path.join(self.dir, 'uv/'+self.idx_list[idx]+'.npy'))
         nan_pos = np.isnan(uv_map)
         uv_map[nan_pos] = 0
@@ -118,15 +124,17 @@ class UVDatasetSH(Dataset):
             print('nan in dataset')
         if np.any(np.isinf(uv_map)):
             print('inf in dataset')
-        img, uv_map, sh, mask= augment(img, mask, uv_map, sh, self.crop_size)
+
+        img, mask, forward, env, uv_map, sh = augment(img, mask, forward, env, uv_map, sh, self.crop_size)
         img = img ** (2.2)
+        env = env ** (2.2)
         forward = forward ** (2.2)
 
         if self.view_direction:
             # view_map = np.load(os.path.join(self.dir, 'view_normal/'+self.idx_list[idx]+'.npy'))
             extrinsics = np.load(os.path.join(self.dir, 'extrinsics/'+self.idx_list[idx]+'.npy'))
-            return img.type(torch.float), uv_map.type(torch.float), torch.from_numpy(extrinsics).type(torch.float), \
-                    mask.type(torch.float), sh.type(torch.float), forward.type(torch.float)
+            return img.type(torch.float), env.type(torch.float), forward.type(torch.float), uv_map.type(torch.float), \
+                    torch.from_numpy(extrinsics).type(torch.float), mask.type(torch.float), sh.type(torch.float)
         else:
             return img, uv_map, mask, sh, forward
 

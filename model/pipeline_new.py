@@ -8,7 +8,79 @@ import torch.nn.functional as F
 
 sys.path.append('..')
 from model.texture import Texture, TextureMapper
-from model.unet_og import UNet
+from model.unet import TestUNet
+
+def y_0_0_(colors, theta, phi):
+    K = np.sqrt( 1.0/(np.pi) ) * 1.0/2.0
+    return K * colors
+
+#-----------------------------------------------------------------------------------------------
+
+def y_1_n1_(colors, theta, phi):
+    x = torch.sin(theta) * torch.cos(phi)
+    y = torch.sin(theta) * torch.sin(phi)
+    z = torch.cos(theta)
+
+    K = np.sqrt( 3.0/(4*np.pi) )
+    return K * y * colors
+
+def y_1_0_(colors, theta, phi):
+    x = torch.sin(theta) * torch.cos(phi)
+    y = torch.sin(theta) * torch.sin(phi)
+    z = torch.cos(theta)
+
+    K = np.sqrt( 3.0/(4*np.pi) )
+    return K * z * colors
+
+def y_1_p1_(colors, theta, phi):
+    x = torch.sin(theta) * torch.cos(phi)
+    y = torch.sin(theta) * torch.sin(phi)
+    z = torch.cos(theta)
+
+    K = np.sqrt( 3.0/(4*np.pi) )
+    return K * x * colors
+
+#-----------------------------------------------------------------------------------------------
+
+def y_2_n2_(colors, theta, phi):
+    x = torch.sin(theta) * torch.cos(phi)
+    y = torch.sin(theta) * torch.sin(phi)
+    z = torch.cos(theta)
+
+    K = np.sqrt( 15.0/(np.pi) ) * 1.0/2.0
+    return K * x * y * colors
+
+def y_2_n1_(colors, theta, phi):
+    x = torch.sin(theta) * torch.cos(phi)
+    y = torch.sin(theta) * torch.sin(phi)
+    z = torch.cos(theta)
+
+    K = np.sqrt( 15.0/(np.pi) ) * 1.0/2.0
+    return K * y * z * colors
+
+def y_2_0_(colors, theta, phi):
+    x = torch.sin(theta) * torch.cos(phi)
+    y = torch.sin(theta) * torch.sin(phi)
+    z = torch.cos(theta)
+
+    K = np.sqrt( 5.0/(16*np.pi) )
+    return K * ( -torch.pow(x, 2)-torch.pow(y, 2)+2*torch.pow(z, 2) ) * colors
+
+def y_2_p1_(colors, theta, phi):
+    x = torch.sin(theta) * torch.cos(phi)
+    y = torch.sin(theta) * torch.sin(phi)
+    z = torch.cos(theta)
+
+    K = np.sqrt( 15.0/(4*np.pi) )
+    return K * z * x * colors
+
+def y_2_p2_(colors, theta, phi):
+    x = torch.sin(theta) * torch.cos(phi)
+    y = torch.sin(theta) * torch.sin(phi)
+    z = torch.cos(theta)
+
+    K = np.sqrt( 15.0/(16*np.pi) )
+    return K * (torch.pow(x, 2)-torch.pow(y, 2)) * colors
 
 
 class PipeLine(nn.Module):
@@ -22,7 +94,7 @@ class PipeLine(nn.Module):
         self.texture = Texture(W, H, feature_num, use_pyramid)
         self.albedo_tex = Texture(W, H, 3, False)
         # self.texture = TextureMapper(texture_size=W,texture_num_ch=16,mipmap_level=4)
-        self.unet = UNet(feature_num + 3 * self.samples, 3 * self.samples)
+        self.unet = TestUNet(feature_num, 9*3)
 
     def _spherical_harmonics_basis(self, extrinsics):
         '''
@@ -67,15 +139,12 @@ class PipeLine(nn.Module):
         return sh_bands
 
     def forward(self, *args):
-        _, cos_t, envmap, uv_map, extrinsics = args
+        wi, cos_t, envmap, uv_map, extrinsics = args
 
         # wi : [b, 2, samples, h, w]
         # cos_t : [b, samples, h, w]
         # envmap : [b, 3, samples, h, w]
 
-        envmap = envmap.view(-1, 3 * self.samples, envmap.shape[3], envmap.shape[4])
-
-        # wi = wi.view(-1, 2 * self.samples, wi.shape[3], wi.shape[4])  # [b, 2*samples, h, w]
         cos_t = torch.unsqueeze(cos_t, dim=1)  # [b, 1, samples, h, w]
         cos_t = torch.tile(cos_t, (1, 3, 1, 1, 1))  # [b, 3, samples, h, w]
 
@@ -83,6 +152,26 @@ class PipeLine(nn.Module):
         albedo = self.albedo_tex(uv_map)  # [b, 3, h, w]
         albedo_ = torch.unsqueeze(albedo, dim=2)  # [b, 3, 1, h, w]
         albedo_ = torch.tile(albedo_, (1, 1, cos_t.shape[2], 1, 1))  # [b, 3, samples, h, w]
+        albedo_ = albedo_ * cos_t
+
+        # Forward
+        forward = albedo_ * envmap
+        forward = torch.sum(forward, dim=2, keepdim=False) # [b, 3, h, w]
+
+        # SH project
+        y_0_0 = 2*np.pi * torch.mean( y_0_0_(albedo_, wi[:, 0:1, :, :, :], wi[:, 1:2, :, :, :]), dim=2 ) # [b, 3, h, w]
+
+        y_1_n1 = 2*np.pi * torch.mean( y_1_n1_(albedo_, wi[:, 0:1, :, :, :], wi[:, 1:2, :, :, :]), dim=2 )
+        y_1_0 = 2*np.pi * torch.mean( y_1_0_(albedo_, wi[:, 0:1, :, :, :], wi[:, 1:2, :, :, :]), dim=2 )
+        y_1_p1 = 2*np.pi * torch.mean( y_1_p1_(albedo_, wi[:, 0:1, :, :, :], wi[:, 1:2, :, :, :]), dim=2 )
+
+        y_2_n2 = 2*np.pi * torch.mean( y_2_n2_(albedo_, wi[:, 0:1, :, :, :], wi[:, 1:2, :, :, :]), dim=2 )
+        y_2_n1 = 2*np.pi * torch.mean( y_2_n1_(albedo_, wi[:, 0:1, :, :, :], wi[:, 1:2, :, :, :]), dim=2 )
+        y_2_0 = 2*np.pi * torch.mean( y_2_0_(albedo_, wi[:, 0:1, :, :, :], wi[:, 1:2, :, :, :]), dim=2 )
+        y_2_p1 = 2*np.pi * torch.mean( y_2_p1_(albedo_, wi[:, 0:1, :, :, :], wi[:, 1:2, :, :, :]), dim=2 )
+        y_2_p2 = 2*np.pi * torch.mean( y_2_p2_(albedo_, wi[:, 0:1, :, :, :], wi[:, 1:2, :, :, :]), dim=2 )
+
+        f = torch.cat((y_0_0, y_1_n1, y_1_0, y_1_p1, y_2_n2, y_2_n1, y_2_0, y_2_p1, y_2_p2), dim=1) # [b, 3*9, h, w]
 
         # Neural texture sampling
         nt = self.texture(uv_map)
@@ -91,19 +180,14 @@ class PipeLine(nn.Module):
         nt[:, 3:12, :, :] = nt[:, 3:12, :, :] * basis
 
         # NN forward
-        inp = torch.cat((nt, envmap), dim=1)
-        T = self.unet(inp)  # [b, 3*samples, h, w]  # Transport / Transfer
-        T = T.reshape(-1, 3, self.samples, cos_t.shape[3], cos_t.shape[4])
+        T = self.unet(nt)  # [b, 3*samples, h, w]  # Transport / Transfer
 
-        final = albedo_ * cos_t * T
-        final = 2.0 / float(self.samples) * torch.sum(final, dim=2)  # 10 - samples
-
-        # final_ = albedo_ * cos_t * envmap
-        final_ = 2.0 / float(self.samples) * torch.sum(T, dim=2)  # 10 - samples
+        final = f.view(-1, 9, 3, f.shape[2], f.shape[3]) * T.view(-1, 9, 3, T.shape[2], T.shape[3]) # [b, 9, 3, h, w]
+        final = torch.sum(final, dim=1, keepdim=False) # [b, 3, h, w]
 
         albedo_tex = torch.cat((self.albedo_tex.textures[0].layer1, self.albedo_tex.textures[1].layer1, self.albedo_tex.textures[2].layer1), dim=1)
 
-        return albedo_tex, albedo, final, final_, cos_t
+        return albedo_tex, final, forward
 
 
 

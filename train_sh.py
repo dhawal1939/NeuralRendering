@@ -12,8 +12,8 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 import config
-from dataset.uv_dataset import UVDataset, UVDatasetSH
-from model.pipeline import PipeLine, PipeLineSH
+from dataset.uv_dataset import UVDatasetSH
+from model.pipeline import PipeLineSH
 from loss import PerceptualLoss
 
 
@@ -68,10 +68,10 @@ def main():
         os.makedirs(checkpoint_dir)
 
     dataset = UVDatasetSH(args.data+'/train/', args.train, args.croph, args.cropw, args.view_direction)
-    dataloader = DataLoader(dataset, batch_size=args.batch, shuffle=True, num_workers=4)
+    dataloader = DataLoader(dataset, batch_size=args.batch, shuffle=True, num_workers=0)
 
     test_dataset = UVDatasetSH(args.data+'/test/', args.train, args.croph, args.cropw, args.view_direction)
-    test_dataloader = DataLoader(test_dataset, batch_size=1, shuffle=True, num_workers=4)
+    test_dataloader = DataLoader(test_dataset, batch_size=4, shuffle=True, num_workers=0)
     test_step = 0
 
     if args.load:
@@ -95,8 +95,8 @@ def main():
         {'params': model.unet.parameters(), 'lr': 0.1 * args.lr}],
         betas=betas, eps=args.eps)
     model = model.to('cuda')
-    # criterion = nn.L1Loss()
-    criterion = PerceptualLoss()
+    criterion = nn.L1Loss()
+    # criterion = PerceptualLoss()
 
     print('Training started')
     for i in range(1, 1+args.epoch):
@@ -108,29 +108,33 @@ def main():
 
         for samples in tqdm(dataloader):
             if args.view_direction:
-                images, uv_maps, extrinsics, masks, sh, forward = samples
+                images, env, forward, uv_maps, extrinsics, masks, sh = samples
+                env = env.cuda()
 
                 step += images.shape[0]
                 optimizer.zero_grad()
                 RGB_texture, preds = model(uv_maps.cuda(), extrinsics.cuda())
-                preds = preds*masks.cuda()
-                sh = sh.cuda()*masks.cuda()
             else:
                 images, uv_maps, masks, sh, forward = samples
                 
                 step += images.shape[0]
                 optimizer.zero_grad()
                 RGB_texture, preds = model(uv_maps.cuda())
-
+            
             # create a volume of the same size of preds by replicating envSH.npy
             # multiply each channel with mask
             # take l1 loss with preds output of the model
-            preds_final = torch.zeros((preds.shape[0], 3, preds.shape[2], preds.shape[3]), dtype=torch.float, device='cuda:0')
+            sh = sh.view(-1, 9, 3, sh.shape[2], sh.shape[3])
+            preds = preds.view(-1, 9, 3, preds.shape[2], preds.shape[3])
+
             preds = preds * sh.cuda()
-            for z in range(0, 25):
-                preds_final[:, 0, :, :] += preds[:, z*3, :, :]
-                preds_final[:, 1, :, :] += preds[:, z*3+1, :, :]
-                preds_final[:, 2, :, :] += preds[:, z*3+2, :, :]
+            preds_final = torch.sum(preds, dim=1, keepdim=False)
+            # preds_final = torch.zeros((preds.shape[0], 3, preds.shape[2], preds.shape[3]), dtype=torch.float, device='cuda:0')
+            # preds = preds * sh.cuda()
+            # for z in range(0, 25):
+            #     preds_final[:, 0, :, :] += preds[:, z*3, :, :]
+            #     preds_final[:, 1, :, :] += preds[:, z*3+1, :, :]
+            #     preds_final[:, 2, :, :] += preds[:, z*3+2, :, :]
 
             # loss1 = criterion(RGB_texture, rgb.cuda())
             # loss2 = criterion(preds_final, images.cuda())
@@ -142,7 +146,8 @@ def main():
             # preds_final = nn.Sigmoid()(preds_final)
             # preds_final = torch.clamp(preds_final,0,1)
             # preds_final = preds_final*masks.cuda()
-            loss = criterion.calculate(preds_final, images.cuda())
+            # loss = criterion.calculate(preds_final, images.cuda())
+            loss = criterion(preds_final, images.cuda())
             loss.backward()
             optimizer.step()
 
@@ -157,20 +162,27 @@ def main():
         all_error = []
         all_forward = []
         for samples in tqdm(test_dataloader):
-            images, uv_maps, extrinsics, masks, sh, forward = samples
+            images, env, forward, uv_maps, extrinsics, masks, sh = samples
+            env = env.cuda()
 
             RGB_texture, preds = model(uv_maps.cuda(), extrinsics.cuda())
-            
-            preds = preds*masks.cuda()
-            sh = sh.cuda()*masks.cuda()
 
-            preds_final = torch.zeros((preds.shape[0], 3, preds.shape[2], preds.shape[3]), dtype=torch.float, device='cuda:0')
+            sh = sh.view(-1, 9, 3, sh.shape[2], sh.shape[3])
+            preds = preds.view(-1, 9, 3, preds.shape[2], preds.shape[3])
+
             preds = preds * sh.cuda()
+            preds_final = torch.sum(preds, dim=1, keepdim=False)
+            
+            # preds = preds*masks.cuda()
+            # sh = sh.cuda()*masks.cuda()
 
-            for z in range(0, 25):
-                preds_final[:, 0, :, :] += preds[:, z*3, :, :]
-                preds_final[:, 1, :, :] += preds[:, z*3+1, :, :]
-                preds_final[:, 2, :, :] += preds[:, z*3+2, :, :]
+            # preds_final = torch.zeros((preds.shape[0], 3, preds.shape[2], preds.shape[3]), dtype=torch.float, device='cuda:0')
+            # preds = preds * sh.cuda()
+
+            # for z in range(0, 25):
+            #     preds_final[:, 0, :, :] += preds[:, z*3, :, :]
+            #     preds_final[:, 1, :, :] += preds[:, z*3+1, :, :]
+            #     preds_final[:, 2, :, :] += preds[:, z*3+2, :, :]
             
             # loss1 = criterion(RGB_texture, rgb.cuda())
             # loss2 = criterion(preds_final, images.cuda())
@@ -181,8 +193,11 @@ def main():
             # preds_final = nn.Sigmoid()(preds_final)
             # preds_final = torch.clamp(preds_final,0,1)
             # preds_final = preds_final*masks.cuda()
-            loss = criterion.calculate(preds_final, images.cuda())
+            # loss = criterion.calculate(preds_final, images.cuda())
+            loss = criterion(preds_final, images.cuda())
             test_loss += loss.item()
+
+            # env = np.clip(env[0, :, :, :].detach().cpu().numpy(), 0, 1) ** (1.0/2.2)
 
             output = np.clip(preds_final[0, :, :, :].detach().cpu().numpy(), 0, 1) ** (1.0/2.2)
             output = output * 255.0

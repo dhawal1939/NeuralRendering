@@ -546,11 +546,24 @@ class AuxIntegrator(SamplingIntegrator):
         # y_4_p3 = y_4_p3 * 4 * ek.pi / num_samples
         # y_4_p4 = y_4_p4 * 4 * ek.pi / num_samples
 
-        result.x = emitter_val.x
-        result.y = emitter_val.y
-        result.z = emitter_val.z
+        y_0_0 = ek.select(active, y_0_0, Vector3f(1.0))
 
-        return result, si.is_valid(), [ Float(y_0_0[0]), Float(y_0_0[1]), Float(y_0_0[2]),\
+        y_1_n1 = ek.select(active, y_1_n1, Vector3f(1.0))
+        y_1_0 = ek.select(active, y_1_0, Vector3f(1.0))
+        y_1_p1 = ek.select(active, y_1_p1, Vector3f(1.0)) 
+
+        y_2_n2 = ek.select(active, y_2_n2, Vector3f(1.0))
+        y_2_n1 = ek.select(active, y_2_n1, Vector3f(1.0))
+        y_2_0 = ek.select(active, y_2_0, Vector3f(1.0))
+        y_2_p1 = ek.select(active, y_2_p1, Vector3f(1.0))
+        y_2_p2 = ek.select(active, y_2_p2, Vector3f(1.0))
+
+        result.x = ek.select(active, si.uv.x, Float(0.0))
+        result.y = ek.select(active, si.uv.y, Float(0.0))
+        result.z = ek.select(active, Float(1.0), Float(0.0))
+
+        return result, si.is_valid(), [ Float(emitter_val[0]), Float(emitter_val[1]), Float(emitter_val[2]),\
+                                        Float(y_0_0[0]), Float(y_0_0[1]), Float(y_0_0[2]),\
                                         Float(y_1_n1[0]), Float(y_1_n1[1]), Float(y_1_n1[2]),\
                                         Float(y_1_0[0]), Float(y_1_0[1]), Float(y_1_0[2]),\
                                         Float(y_1_p1[0]), Float(y_1_p1[1]), Float(y_1_p1[2]),\

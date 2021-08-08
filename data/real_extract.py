@@ -35,9 +35,9 @@ def process(args, i, img_path, frames_dir, output_dir, colmap_dir, env_pose):
     img_name = img_path.split('/')[-1]
     identifier = img_name.replace('.png', '').replace('.jpg', '').replace('.JPG', '').replace('image', '')
 
-    # gt = load_image('%s/%s/%s' % (args.data_dir, frames_dir, img_name), (args.img_width, args.img_height))
-    # mask = load_image('%s/%s_mask/%s.png' % (args.data_dir, frames_dir, identifier), (args.img_width, args.img_height))
-    # gt = gt * mask
+    gt = load_image('%s/%s/%s' % (args.data_dir, frames_dir, img_name), (args.img_width, args.img_height))
+    mask = load_image('%s/%s_mask/%s.png' % (args.data_dir, frames_dir, identifier), (args.img_width, args.img_height))
+    gt = gt * mask + (1-mask)
 
     p, focal_length, og_width, og_height = camera_pose('%s/%s/' % (args.data_dir, colmap_dir), img_path, 'new_sparse')
     pose = ' '.join([str(elem) for elem in p])
@@ -61,9 +61,9 @@ def process(args, i, img_path, frames_dir, output_dir, colmap_dir, env_pose):
                         spp=8, width=args.img_width, height=args.img_height)
 
     rendered_op = render(scene, spp=1)
-    rendered_op = rendered_op.numpy().reshape(IMG_HEIGHT, IMG_WIDTH, 10, 3)
+    rendered_op = rendered_op.numpy().reshape(IMG_HEIGHT, IMG_WIDTH, 11, 3)
 
-    env = np.clip(rendered_op[:, :, 0, :], 0, 1) ** (1.0/2.2)
+    env = np.clip(rendered_op[:, :, 1, :], 0, 1) ** (1.0/2.2)
     env *= 255.0
     env = env.astype(np.uint8)
     env = cv2.cvtColor(env, cv2.COLOR_RGB2BGR)
@@ -72,27 +72,27 @@ def process(args, i, img_path, frames_dir, output_dir, colmap_dir, env_pose):
     f_sh[f_sh == 0] = 0.01
     f_sh = f_sh.reshape(IMG_HEIGHT, IMG_WIDTH, -1)
     
-    # uv = rendered_op[:, :, 0, :]
+    uv = rendered_op[:, :, 0, :]
 
-    # uv_png = uv.copy()
-    # uv_png *= 255.0
-    # uv_png = uv_png.astype(np.uint8)
+    uv_png = uv.copy()
+    uv_png *= 255.0
+    uv_png = uv_png.astype(np.uint8)
 
-    # gt = np.clip(gt, 0, 1)**(1.0/2.2)
-    # gt *= 255.0
-    # gt = gt.astype(np.uint8)
+    gt = np.clip(gt, 0, 1)**(1.0/2.2)
+    gt *= 255.0
+    gt = gt.astype(np.uint8)
 
-    # mask = np.clip(mask, 0, 1)
-    # mask *= 255.0
-    # mask = mask.astype(np.uint8)
+    mask = np.clip(mask, 0, 1)
+    mask *= 255.0
+    mask = mask.astype(np.uint8)
 
     cv2.imwrite('%s/forward/%s.png' % (output_dir, identifier), img)
     cv2.imwrite('%s/env/%s.png' % (output_dir, identifier), env)
-    # cv2.imwrite('%s/frames/%s.png' % (output_dir, identifier), cv2.cvtColor(gt, cv2.COLOR_RGB2BGR))
-    # cv2.imwrite('%s/mask/%s.png' % (output_dir, identifier), mask)
-    # np.save('%s/uv/%s.npy' % (output_dir, identifier), uv)
-    # cv2.imwrite('%s/uv_png/%s.png' % (output_dir, identifier), cv2.cvtColor(uv_png, cv2.COLOR_RGB2BGR))
-    # np.save('%s/extrinsics/%s.npy' % (output_dir, identifier), np.array([tx, ty, tz], dtype=np.float64))
+    cv2.imwrite('%s/frames/%s.png' % (output_dir, identifier), cv2.cvtColor(gt, cv2.COLOR_RGB2BGR))
+    cv2.imwrite('%s/mask/%s.png' % (output_dir, identifier), mask)
+    np.save('%s/uv/%s.npy' % (output_dir, identifier), uv)
+    cv2.imwrite('%s/uv_png/%s.png' % (output_dir, identifier), cv2.cvtColor(uv_png, cv2.COLOR_RGB2BGR))
+    np.save('%s/extrinsics/%s.npy' % (output_dir, identifier), np.array([tx, ty, tz], dtype=np.float64))
     np.save('%s/sh/%s.npy' % (output_dir, identifier), f_sh)
 
     del rendered_op

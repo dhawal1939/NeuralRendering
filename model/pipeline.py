@@ -12,7 +12,7 @@ from model.unet import TestUNet,MaskUNet
 
 
 class PipeLineSH(nn.Module):
-    def __init__(self, W, H, feature_num, sh_channels=9,use_pyramid=True, view_direction=True):
+    def __init__(self, W, H, feature_num, use_pyramid=True, view_direction=True):
         super(PipeLineSH, self).__init__()
         self.feature_num = feature_num
         self.use_pyramid = use_pyramid
@@ -20,7 +20,7 @@ class PipeLineSH(nn.Module):
         # self.texture = Texture(W, H, feature_num, use_pyramid)
         self.texture = Texture(W, H, feature_num, use_pyramid)
         # self.texture = TextureMapper(texture_size=W,texture_num_ch=16,mipmap_level=4)
-        self.unet = TestUNet(feature_num, sh_channels*3)
+        self.unet = TestUNet(feature_num, 9*3)
 
     def _spherical_harmonics_basis(self, extrinsics):
         '''

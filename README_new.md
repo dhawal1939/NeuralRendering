@@ -189,13 +189,10 @@ scene_dr_perfect_geometry.xml: GT geometry and DR material
     - uv
     - uv_png
     - transform
-    - forward
-    - sh
-    - env
     - mask
 
 [ GERERATES TRAINING DATA, SAVES TO 'output_dir' ]
-- python data/real_extract_2.py --scene_file /media/aakash/wd1/DATASETS/FISH/scene.xml --data_dir /media/aakash/wd1/DATASETS/FISH/ --output_dir /media/aakash/wd1/DATASETS/FISH/B,Diff,Cm/ --train_image_list_txt /media/aakash/wd1/DATASETS/FISH/colmap_output/dense/0/image-list.txt --test_image_list_txt /media/aakash/wd1/DATASETS/FISH/colmap_output/colmap_output_test/dense/0/image-list.txt --img_width 960 --img_height 540 --envmap_input /media/aakash/wd1/DATASETS/FISH/envmap.JPG --alignment_x 0.0 --alignment_y 1.0 --alignment_z 0.0
+- python data/real_extract_2.py --scene_file /media/aakash/wd1/DATASETS/FISH/scene.xml --data_dir /media/aakash/wd1/DATASETS/FISH/ --output_dir /media/aakash/wd1/DATASETS/FISH/B,Diff,Cm/ --train_image_list_txt /media/aakash/wd1/DATASETS/FISH/colmap_output/dense/0/image-list.txt --test_image_list_txt /media/aakash/wd1/DATASETS/FISH/colmap_output/colmap_output_test/dense/0/image-list.txt --img_width 960 --img_height 540
 - The alignment_vec_* params should be replaced with the vector obtained in the "GET ALIGNMENT VECTOR" step
 
 [ OPTIMIZE FOR ALBEDO TEX ] 

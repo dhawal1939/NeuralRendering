@@ -28,8 +28,6 @@ parser.add_argument('--checkpoint', type=str, default='/media/dhawals/Data/DATAS
                     help='directory to save checkpoint')
 parser.add_argument('--logdir', type=str, default='/media/dhawals/Data/DATASETS/new_pipeline/WOMAN/checkpoints/',
                     help='directory to save checkpoint')
-parser.add_argument('--output_dir', type=str, default='/media/dhawals/Data/DATASETS/new_pipeline/WOMAN/checkpoints/',
-                    help='directory to save log etc.')
 parser.add_argument('--train', default=config.TRAIN_SET)
 parser.add_argument('--epoch', type=int, default=1000)
 parser.add_argument('--cropw', type=int, default=config.CROP_W)
@@ -122,17 +120,15 @@ def main():
         torch.set_grad_enabled(True)
 
         for samples in tqdm(dataloader, desc=f'Train: Epoch {i}'):
-            # images, uv_maps, wi, cos_t, envmap = samples
             images, uv_maps, extrinsics, wi, cos_t, envmap = samples
+            images = images.cuda()
 
             step += images.shape[0]
             optimizer.zero_grad()
 
-            # RGB_texture, RGB_texture_proj, preds, cos_t = model(wi.cuda(), cos_t.cuda(), envmap.cuda(), uv_maps.cuda())
-            RGB_texture, RGB_texture_proj, preds, preds_, cos_t = model(wi.cuda(), cos_t.cuda(), envmap.cuda(), uv_maps.cuda(),
-                                                                        extrinsics.cuda())
+            RGB_texture, preds, forward = model(wi.cuda(), cos_t.cuda(), envmap.cuda(), uv_maps.cuda(), extrinsics.cuda())
             
-            loss = criterion(preds, images.cuda())
+            loss = criterion(preds, images) + criterion(forward, images)
             loss.backward()
             optimizer.step()
 
@@ -145,31 +141,24 @@ def main():
         all_gt = []
         all_uv = []
         all_albedo = []
-        all_T = []
         idx = 0
         for samples in tqdm(test_dataloader, desc=f'Test: Epoch {i}'):
             if idx == 20:
                 break
 
-            # images, uv_maps, wi, cos_t, envmap = samples
             images, uv_maps, extrinsics, wi, cos_t, envmap = samples
+            images = images.cuda()
 
-            # RGB_texture, RGB_texture_proj, preds, cos_t = model(wi.cuda(), cos_t.cuda(), envmap.cuda(), uv_maps.cuda())
-            RGB_texture, RGB_texture_proj, preds, preds_, cos_t = model(wi.cuda(), cos_t.cuda(), envmap.cuda(), uv_maps.cuda(),
-                                                                        extrinsics.cuda())
+            RGB_texture, preds, forward = model(wi.cuda(), cos_t.cuda(), envmap.cuda(), uv_maps.cuda(), extrinsics.cuda())
 
-            loss = criterion(preds, images.cuda())
+            loss = criterion(preds, images) + criterion(forward, images)
             test_loss += loss.item()
 
             output = np.clip(preds[0, :, :, :].detach().cpu().numpy(), 0, 1) ** (1.0 / 2.2)
             output = output * 255.0
             output = output.astype(np.uint8)
 
-            T = np.clip(preds_[0, :, :, :].detach().cpu().numpy(), 0, 1) ** (1.0 / 2.2)
-            T = T * 255.0
-            T = T.astype(np.uint8)
-
-            gt = np.clip(images[0, :, :, :].numpy(), 0, 1) ** (1.0 / 2.2)
+            gt = np.clip(images[0, :, :, :].detach().cpu().numpy(), 0, 1) ** (1.0 / 2.2)
             gt = gt * 255.0
             gt = gt.astype(np.uint8)
 
@@ -188,7 +177,6 @@ def main():
             all_gt.append(gt)
             all_uv.append(uv_final)
             all_albedo.append(albedo)
-            all_T.append(T)
 
             idx += 1
 
@@ -198,7 +186,6 @@ def main():
         writer.add_image('test/output', all_preds[ridx], test_step)
         writer.add_image('test/gt', all_gt[ridx], test_step)
         writer.add_image('test/albedo', all_albedo[ridx], test_step)
-        writer.add_image('test/transport', all_T[ridx], test_step)
 
         test_step += 1
 
@@ -209,7 +196,7 @@ def main():
 
             albedo = np.transpose(all_albedo[0], (1, 2, 0))
             albedo = cv2.cvtColor(albedo, cv2.COLOR_RGB2BGR)
-            cv2.imwrite('%s/dr_log/%s.png' % (args.output_dir, str(test_step).zfill(5)), albedo)
+            cv2.imwrite('%s/texture_output/%s.png' % (args.data, str(test_step).zfill(5)), albedo)
 
 
 if __name__ == '__main__':

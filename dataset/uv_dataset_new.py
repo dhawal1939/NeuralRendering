@@ -7,7 +7,6 @@ import time
 
 from util import augment_new, augment_eval, augment_og, augment_center_crop, augment_center_crop_mask
 
-
 class UVDataset(Dataset):
 
     def __init__(self, dir, idx_list, H, W, samples=10, view_direction=False):
@@ -23,10 +22,42 @@ class UVDataset(Dataset):
 
         self.envmap = cv2.cvtColor(cv2.imread('%s/envmap.jpg' % dir), cv2.COLOR_BGR2RGB).astype(np.float)
         self.envmap = (self.envmap / 255.0) ** (2.2)
-        # self.envmap = torch.from_numpy(self.envmap).cuda()
 
     def __len__(self):
         return len(self.idx_list)
+    
+    def concentric_sample_disk(self, n):
+        r1, r2 = torch.rand(n, dtype=torch.float32).cuda(), torch.rand(n, dtype=torch.float32).cuda()
+
+        if r1 == 0.0 and r2 == 0.0:
+            return Vector2(x=0.0, y=0.0)
+
+        theta = 0.0
+        r = 0.0
+        if(abs(r1) > abs(r2)):
+            r = r1
+            theta = math.pi * r2 / (4 * r1)
+        else:
+            r = r2
+            theta = (math.pi / 2) - (math.pi * r1 / (4 * r2))
+
+        return Vector2(x=math.cos(theta), y=math.sin(theta)) * r
+
+    def cosine_sample_hemisphere(wo, normal):	
+        s = normal.cross(wo).unit_vec()
+        t = s.cross(normal).unit_vec()
+
+        m = np.vstack([s.as_numpy(), t.as_numpy(), normal.as_numpy()])
+        m_d = m.T
+
+        disk_point = concentric_sample_disk()
+        z = math.sqrt(max(0.0, 1 - disk_point.x**2 - disk_point.y**2))
+
+        wi_d = Vector3(x=disk_point.x, y=disk_point.y, z=z)
+        wi = np.matmul(m_d, wi_d.as_numpy())
+        wi = Vector3(x=wi[0], y=wi[1], z=wi[2])
+
+        return wi
 
     def sample_hemishpere(self, n):
         eta_1, eta_2 = torch.rand(n, dtype=torch.float32).cuda(), torch.rand(n, dtype=torch.float32).cuda()

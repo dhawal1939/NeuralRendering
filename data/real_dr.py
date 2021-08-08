@@ -35,7 +35,7 @@ from poses.read_model import camera_pose
 import tensorboardX
 
 def save_opt(args, params, crop_size):
-    write_bitmap('%s/optimized_textures/diffuse_opt.exr' % args.data_dir, params['obj_1.bsdf.reflectance.data'], (512, 512), write_async=False)
+    write_bitmap('%s/0-DR-Dataset/optimized_textures/diffuse_opt.exr' % args.data_dir, params['obj_1.bsdf.reflectance.data'], (512, 512), write_async=False)
 
     # diff_opt = params['obj_1.bsdf.reflectance.data']
     # diff_opt = np.clip(np.sign(diff_opt)*(np.abs(diff_opt))**(1.0/2.2), 0, 1) * 255.0
@@ -64,10 +64,10 @@ if __name__ == '__main__':
     Thread.thread().file_resolver().append(os.path.dirname(args.scene_file))
 
     init_tex = np.ones((512, 512, 3), dtype=np.float32) * 0.5
-    imageio.imwrite('%s/optimized_textures/diffuse_opt.exr' % args.data_dir, init_tex)
+    imageio.imwrite('%s/0-DR-Dataset/optimized_textures/diffuse_opt.exr' % args.data_dir, init_tex)
     # cv2.imwrite('%s/optimized_textures/diffuse_opt.exr' % args.data_dir, (init_tex*255.0).astype(np.uint8))
 
-    writer = tensorboardX.SummaryWriter(logdir=args.data_dir+'/dr_tensorboard/')
+    writer = tensorboardX.SummaryWriter(logdir=args.data_dir+'/0-DR-Dataset/dr_tensorboard/')
     
     img_list_file = open(args.image_list_txt, 'r')
     img_list = []
@@ -92,8 +92,10 @@ if __name__ == '__main__':
             img_name = img_path.split('/')[-1]
 
             identifier = img_name.replace('.png', '').replace('.jpg', '').replace('.JPG', '').replace('image', '')
-
-            # print('%s/video_frames_mask/%s.png' % (args.data_dir, identifier))
+            
+            print('########################################')
+            print('%s/video_frames/%s.png' % (args.data_dir, identifier))
+            print('########################################')
 
             gt = load_image('%s/video_frames/%s' % (args.data_dir, img_name), (args.img_width, args.img_height))
             mask = load_image('%s/video_frames_mask/%s.png' % (args.data_dir, identifier), (args.img_width, args.img_height))
@@ -134,8 +136,8 @@ if __name__ == '__main__':
                     gt_ = gt_.reshape(args.img_height, args.img_width, 3)
                     gt_ = cv2.cvtColor(gt_, cv2.COLOR_RGB2BGR)
 
-                    write_bitmap('%s/dr_log/out_%05i_%05i_%05i_0.png' % (args.data_dir, epoch, i, si), image, crop_size)
-                    cv2.imwrite('%s/dr_log/out_%05i_%05i_%05i_1.png' % (args.data_dir, epoch, i, si), gt_)
+                    write_bitmap('%s/0-DR-Dataset/dr_log/out_%05i_%05i_%05i_0.png' % (args.data_dir, epoch, i, si), image, crop_size)
+                    cv2.imwrite('%s/0-DR-Dataset/dr_log/out_%05i_%05i_%05i_1.png' % (args.data_dir, epoch, i, si), gt_)
 
                 ob_val = ek.hsum(ek.sqr(image - gt.flatten())) / len(image)
                 ek.backward(ob_val)

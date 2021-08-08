@@ -38,7 +38,7 @@ def process(args, i, img_path, frames_dir, output_dir, colmap_dir):
 
     gt = load_image('%s/%s/%s' % (args.data_dir, frames_dir, img_name), (args.img_width, args.img_height))
     mask = load_image('%s/%s_mask/%s.png' % (args.data_dir, frames_dir, identifier), (args.img_width, args.img_height))
-    gt = gt * mask
+    # gt = gt * mask
 
     p, focal_length, og_width, og_height = camera_pose('%s/%s/' % (args.data_dir, colmap_dir), img_path, 'new_sparse')
     pose = ' '.join([str(elem) for elem in p])
@@ -126,31 +126,31 @@ if __name__ == '__main__':
     env_pose = trimesh.geometry.align_vectors(alignment_vec, np.array([0.0, 0.0, 1.0]))[:3, :3]
     envmap_out = computeImageAfterRotate(envmap_out, env_pose)
     
-    cv2.imwrite('%s/B,Diff,Cm/train/envmap.jpg' % args.data_dir, envmap_out)
-    cv2.imwrite('%s/B,Diff,Cm/test/envmap.jpg' % args.data_dir, envmap_out)
+    cv2.imwrite('%s/0-COMB-Dataset/train/envmap.jpg' % args.data_dir, envmap_out)
+    cv2.imwrite('%s/0-COMB-Dataset/test/envmap.jpg' % args.data_dir, envmap_out)
 
     ########################################
     # Save UV and transformation matrices
     ########################################
 
-    frames_dir = 'video_frames'
-    img_list_file = sorted(open(args.train_image_list_txt, 'r'))
-    img_list = []
-    for l in img_list_file:
-        img_list.append(l)
+    # frames_dir = 'video_frames'
+    # img_list_file = sorted(open(args.train_image_list_txt, 'r'))
+    # img_list = []
+    # for l in img_list_file:
+    #     img_list.append(l)
 
-    for i, img_path in enumerate(img_list):
-        process(args, i, img_path, frames_dir, args.output_dir+'/train/', 'colmap_output/')
+    # for i, img_path in enumerate(img_list):
+    #     process(args, i, img_path, frames_dir, args.output_dir+'/train/', 'colmap_output/')
     
-    # Test
-    frames_dir = 'video_frames_test'
-    img_list_file = sorted(open(args.test_image_list_txt, 'r'))
-    img_list = []
-    for l in img_list_file:
-        img_list.append(l)
+    # # Test
+    # frames_dir = 'video_frames_test'
+    # img_list_file = sorted(open(args.test_image_list_txt, 'r'))
+    # img_list = []
+    # for l in img_list_file:
+    #     img_list.append(l)
 
-    for i, img_name in enumerate(img_list):
-        process(args, i, img_name, frames_dir, args.output_dir+'/test/', 'colmap_output/colmap_output_test/')
+    # for i, img_name in enumerate(img_list):
+    #     process(args, i, img_name, frames_dir, args.output_dir+'/test/', 'colmap_output/colmap_output_test/')
 
 
     

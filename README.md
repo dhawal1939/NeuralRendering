@@ -178,11 +178,23 @@ scene_dr_perfect_geometry.xml: GT geometry and DR material
   - Use template file 'scene_dr_real.xml' from 'data/example_scene_files/'
   - Make 'scene_dr.xml' mitsuba scene description file
 
-- MAKE 'optimized_textures' DIRECTORY
+- MAKE TRAIN DIRECTORY (EXAMPLE '0-DR-Dataset')
+  - Make 'train' and 'test' subdirectories
+  - In both 'train' and 'test', create 7 directories
+    - extrinsics
+    - frames
+    - forward
+    - uv
+    - uv_png
+    - mask
+    - sh
+    - env
 
-- MAKE 'dr_tensorboard' DIRECTORY
+- MAKE '0-DR-Dataset/optimized_textures' DIRECTORY
 
-- MAKE 'dr_log' DIRECTORY
+- MAKE '0-DR-Dataset/dr_tensorboard' DIRECTORY
+
+- MAKE '0-DR-Dataset/dr_log' DIRECTORY
 
 [ CREATE MASKS FOR TRAINING VIDEO FRAMES ]
 - python create_frame_mask.py --data_dir /media/aakash/wd1/DATASETS/FISH --frames_dir video_frames --output_dir video_frames_mask --model_path U2Net/saved_models --model_name u2net
@@ -200,19 +212,9 @@ scene_dr_perfect_geometry.xml: GT geometry and DR material
 [ OPTIMIZES FOR MATERIAL FROM COLMAP GEOMETRY ]
 - python data/real_dr.py --scene_file /media/aakash/wd1/DATASETS/FISH/scene_dr.xml --data_dir /media/aakash/wd1/DATASETS/FISH/ --image_list_txt /media/aakash/wd1/DATASETS/FISH/colmap_output/dense/0/image-list.txt --epochs 20 --img_width 480 --img_height 270
 
-- MAKE TRAIN DIRECTORY (EXAMPLE 'B,Diff,Cm')
-  - Make 'train' and 'test' subdirectories
-  - In both 'train' and 'test', create 7 directories
-    - extrinsics
-    - frames
-    - forward
-    - uv
-    - uv_png
-    - mask
-    - sh
-
 [ GERERATES TRAINING DATA, SAVES TO 'output_dir' ]
-- python data/real_extract.py --scene_file /media/aakash/wd1/DATASETS/FISH/scene_dr.xml --data_dir /media/aakash/wd1/DATASETS/FISH/ --output_dir /media/aakash/wd1/DATASETS/FISH/B,Diff,Cm/ --train_image_list_txt /media/aakash/wd1/DATASETS/FISH/colmap_output/dense/0/image-list.txt --test_image_list_txt /media/aakash/wd1/DATASETS/FISH/colmap_output/colmap_output_test/dense/0/image-list.txt --img_width 960 --img_height 540
+- python data/real_extract.py --scene_file /media/aakash/wd1/DATASETS/FISH/scene_dr.xml --data_dir /media/aakash/wd1/DATASETS/FISH/ --output_dir /media/aakash/wd1/DATASETS/FISH/B,Diff,Cm/ --train_image_list_txt /media/aakash/wd1/DATASETS/FISH/colmap_output/dense/0/image-list.txt --test_image_list_txt /media/aakash/wd1/DATASETS/FISH/colmap_output/colmap_output_test/dense/0/image-list.txt --img_width 960 --img_height 540 --alignment_x 0.0 --alignment_y 0.0 --alignment_z 0.0
+- The alignment_vec_* params should be replaced with the vector obtained in the "GET ALIGNMENT VECTOR" step
 
 [ TRAIN NETWORK ]
 - python train_sh.py --data /ssd_scratch/cvit/darthgera123/FISH/B,Diff,Cm/ --checkpoint /scratch/darthgera123/FISH/checkpoints/ --logdir /scratch/darthgera123/FISH/logs/ --epoch 50 --epoch_per_checkpoint 5
