@@ -25,39 +25,50 @@ class UVDataset(Dataset):
 
     def __len__(self):
         return len(self.idx_list)
-    
+
     def concentric_sample_disk(self, n):
         r1, r2 = torch.rand(n, dtype=torch.float32).cuda(), torch.rand(n, dtype=torch.float32).cuda()
 
-        if r1 == 0.0 and r2 == 0.0:
-            return Vector2(x=0.0, y=0.0)
+        zero_x_y = torch.where(r1 + r2 == 0, True, False)
+        zero_x_y = torch.stack((zero_x_y, zero_x_y), dim=-1)
+        zeros = torch.zeros((*n, 2)).cuda()
 
-        theta = 0.0
-        r = 0.0
-        if(abs(r1) > abs(r2)):
-            r = r1
-            theta = math.pi * r2 / (4 * r1)
-        else:
-            r = r2
-            theta = (math.pi / 2) - (math.pi * r1 / (4 * r2))
+        c1, c2 = 4 * r1, 4 * r2
+        x = torch.where(r1 > r2, torch.cos(np.pi * r2 / c1), torch.cos(np.pi / 2 - np.pi * r1 / c2))
+        y = torch.where(r1 > r2, torch.sin(np.pi * r2 / c1), torch.sin(np.pi / 2 - np.pi * r1 / c2))
 
-        return Vector2(x=math.cos(theta), y=math.sin(theta)) * r
+        r = torch.where(r1 > r2, r1, r2)
 
-    def cosine_sample_hemisphere(wo, normal):	
-        s = normal.cross(wo).unit_vec()
-        t = s.cross(normal).unit_vec()
+        r = torch.stack((r, r), dim=-1)
 
-        m = np.vstack([s.as_numpy(), t.as_numpy(), normal.as_numpy()])
-        m_d = m.T
+        points = r * torch.stack((x, y), dim=-1)
 
-        disk_point = concentric_sample_disk()
-        z = math.sqrt(max(0.0, 1 - disk_point.x**2 - disk_point.y**2))
+        # theta = 0.0
+        # r = 0.0
+        # if(abs(r1) > abs(r2)):
+        #     r = r1
+        #     theta = math.pi * r2 / (4 * r1)
+        # else:
+        #     r = r2
+        #     theta = (math.pi / 2) - (math.pi * r1 / (4 * r2))
 
-        wi_d = Vector3(x=disk_point.x, y=disk_point.y, z=z)
-        wi = np.matmul(m_d, wi_d.as_numpy())
-        wi = Vector3(x=wi[0], y=wi[1], z=wi[2])
+        # return Vector2(x=math.cos(theta), y=math.sin(theta)) * r
 
-        return wi
+        return torch.where(zero_x_y, zeros, points)
+
+    def cosine_sample_hemisphere(self, n):
+
+        disk_point = self.concentric_sample_disk(n)
+        xy = disk_point[:, :, 0] * disk_point[:, :, 1]
+        z = torch.sqrt(torch.where(1 - xy < 0., 0.0, 1-xy))
+
+        wi_d = torch.cat((disk_point, z), dim=-1)
+
+        # wi_d = Vector3(x=disk_point.x, y=disk_point.y, z=z)
+        # wi = np.matmul(m_d, wi_d.as_numpy())
+        # wi = Vector3(x=wi[0], y=wi[1], z=wi[2])
+
+        return wi_d
 
     def sample_hemishpere(self, n):
         eta_1, eta_2 = torch.rand(n, dtype=torch.float32).cuda(), torch.rand(n, dtype=torch.float32).cuda()
