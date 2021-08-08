@@ -120,19 +120,24 @@ def main():
         torch.set_grad_enabled(True)
 
         for samples in tqdm(dataloader, desc=f'Train: Epoch {i}'):
-            images, uv_maps, extrinsics, wi, cos_t, envmap = samples
-            images = images.cuda()
+            images, uv_maps, mask, extrinsics, wi, cos_t, envmap = samples
+            mask = mask.cuda()
+            images = images.cuda() * mask
 
             step += images.shape[0]
             optimizer.zero_grad()
 
             RGB_texture, preds, forward = model(wi.cuda(), cos_t.cuda(), envmap.cuda(), uv_maps.cuda(), extrinsics.cuda())
+            preds *= mask
+            forward *= mask
             
             loss = criterion(preds, images) + criterion(forward, images)
             loss.backward()
             optimizer.step()
 
             writer.add_scalar('train/loss', loss.item(), step)
+
+            break
 
         model.eval()
         torch.set_grad_enabled(False)
@@ -146,10 +151,13 @@ def main():
             if idx == 20:
                 break
 
-            images, uv_maps, extrinsics, wi, cos_t, envmap = samples
-            images = images.cuda()
+            images, uv_maps, mask, extrinsics, wi, cos_t, envmap = samples
+            mask = mask.cuda()
+            images = images.cuda() * mask
 
             RGB_texture, preds, forward = model(wi.cuda(), cos_t.cuda(), envmap.cuda(), uv_maps.cuda(), extrinsics.cuda())
+            preds *= mask
+            forward *= mask
 
             loss = criterion(preds, images) + criterion(forward, images)
             test_loss += loss.item()

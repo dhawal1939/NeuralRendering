@@ -93,6 +93,7 @@ class UVDataset(Dataset):
 
     def __getitem__(self, idx):
         img = Image.open(os.path.join(self.dir, 'frames/' + self.idx_list[idx] + '.png'), 'r')
+        mask = Image.open(os.path.join(self.dir, 'mask/'+self.idx_list[idx]+'.png'), 'r')
 
         transform = np.load(os.path.join(self.dir, 'transform/' + self.idx_list[idx] + '.npy'))  # [540, 960, 9]
         nan_pos = np.isnan(transform)
@@ -110,7 +111,7 @@ class UVDataset(Dataset):
         if np.any(np.isinf(uv_map)):
             print('inf in dataset')
 
-        img, uv_map, transform = augment_new(img, uv_map, transform, self.crop_size)
+        img, uv_map, mask, transform = augment_new(img, uv_map, mask, transform, self.crop_size)
         img = img ** (2.2)
 
         extrinsics = np.load(os.path.join(self.dir, 'extrinsics/' + self.idx_list[idx] + '.npy'))
@@ -135,5 +136,5 @@ class UVDataset(Dataset):
         sampled_env = sampled_env.permute(3, 2, 0, 1)
 
         # return img.type(torch.float), uv_map.type(torch.float), wi, cos_t, sampled_env
-        return img.type(torch.float), uv_map.type(torch.float), torch.from_numpy(extrinsics).type(torch.float),\
-                    wi, cos_t, sampled_env
+        return img.type(torch.float), uv_map.type(torch.float), mask.type(torch.float),\
+                torch.from_numpy(extrinsics).type(torch.float), wi, cos_t, sampled_env

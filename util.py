@@ -67,7 +67,7 @@ def augment_eval(img, mask, map, sh, env_sh, crop_size,forward):
 
     return img, map, sh, env_sh, mask, forward
 
-def augment_new(img, map, transform, crop_size):
+def augment_new(img, map, mask, transform, crop_size):
     '''
     :param img:  PIL input image
     :param mask:  PIL input mask
@@ -86,13 +86,14 @@ def augment_new(img, map, transform, crop_size):
     w1 = random.randint(0, w - crop_w)
     h1 = random.randint(0, h - crop_h)
     img = img.crop((w1, h1, w1 + crop_w, h1 + crop_h))
+    mask = mask.crop((w1, h1, w1 + crop_w, h1 + crop_h))
     map = map[h1:h1 + crop_h, w1:w1 + crop_w, :]
     transform = transform[h1:h1 + crop_h, w1:w1 + crop_w, :]
 
     # final transform
-    img, map, transform = img_transform(img), map_transform(map), torch.from_numpy(transform)
+    img, mask, map, transform = img_transform(img), img_transform(mask), map_transform(map), torch.from_numpy(transform)
 
-    return img, map, transform
+    return img, map, mask, transform
 
 def augment(img, mask, forward, env, map, sh, crop_size):
     '''
