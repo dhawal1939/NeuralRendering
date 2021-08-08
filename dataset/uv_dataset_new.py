@@ -67,8 +67,7 @@ class UVDataset(Dataset):
         # wi_d = Vector3(x=disk_point.x, y=disk_point.y, z=z)
         # wi = np.matmul(m_d, wi_d.as_numpy())
         # wi = Vector3(x=wi[0], y=wi[1], z=wi[2])
-
-        return wi_d
+        return wi_d 
 
     def sample_hemishpere(self, n):
         eta_1, eta_2 = torch.rand(n, dtype=torch.float32).cuda(), torch.rand(n, dtype=torch.float32).cuda()
@@ -134,10 +133,12 @@ class UVDataset(Dataset):
 
         # wi = self.sample_hemishpere((transform.shape[0], self.samples))
         wi = self.cosine_sample_hemisphere((transform.shape[0], self.samples))
+        wi /= (torch.linalg.norm(wi, dim=2, keepdims=True) + self.tiny_number)
         # cos_t = wi[:, :, 2].type(torch.float32)  # [hxw, self.samples]
 
         wi = (transform @ wi.permute(0, 2, 1)).permute(0, 2, 1)  # [hxw, samples, 3]
         wi /= (torch.linalg.norm(wi, dim=2, keepdims=True) + self.tiny_number)
+        
         wi = self.convert_spherical(wi)  # [hxw, samples, 2]
 
         sampled_env = self.sample_envmap(wi)  # [hxw, self.samples, 3]

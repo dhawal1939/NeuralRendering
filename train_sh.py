@@ -122,8 +122,8 @@ def main():
         {'params': model.unet.parameters(), 'lr': 0.1 * args.lr}],
         betas=betas, eps=args.eps)
     model = model.to('cuda')
-    # criterion = nn.L1Loss()
-    criterion = PerceptualLoss()
+    criterion = nn.L1Loss()
+    # criterion = PerceptualLoss()
     model_mask = model_mask.to('cuda')
     criterion_mask = nn.BCEWithLogitsLoss()
 

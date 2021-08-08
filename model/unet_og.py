@@ -27,13 +27,13 @@ class up(nn.Module):
                 self.conv = nn.Sequential(
                     nn.ConvTranspose2d(in_ch, out_ch, 4, stride=2, padding=1, output_padding=output_pad),
                     # nn.InstanceNorm2d(out_ch),
-                    nn.Tanh()
+                    # nn.Tanh()
                 )
             else:
                 self.conv = nn.Sequential(
                     nn.ConvTranspose2d(in_ch, out_ch, 4, stride=2, padding=1, output_padding=output_pad),
                     # nn.InstanceNorm2d(out_ch),
-                    nn.Sigmoid()
+                    # nn.Sigmoid()
                 )
         else:
             self.conv = nn.Sequential(
