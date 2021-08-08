@@ -20,9 +20,9 @@ class PipeLine(nn.Module):
         self.samples = samples
         # self.texture = Texture(W, H, feature_num, use_pyramid)
         self.texture = Texture(W, H, feature_num, use_pyramid)
-        self.albedo_tex = Texture(W*2, H*2, 3, False)
+        self.albedo_tex = Texture(W, H, 3, False)
         # self.texture = TextureMapper(texture_size=W,texture_num_ch=16,mipmap_level=4)
-        self.unet = UNet(feature_num + 2 * self.samples, 3*self.samples)
+        self.unet = UNet(feature_num + 3 * self.samples, 3 * self.samples)
 
     def _spherical_harmonics_basis(self, extrinsics):
         '''
@@ -67,13 +67,15 @@ class PipeLine(nn.Module):
         return sh_bands
 
     def forward(self, *args):
-        wi, cos_t, envmap, uv_map, extrinsics = args
+        _, cos_t, envmap, uv_map, extrinsics = args
 
         # wi : [b, 2, samples, h, w]
         # cos_t : [b, samples, h, w]
         # envmap : [b, 3, samples, h, w]
 
-        wi = wi.view(-1, 2 * self.samples, wi.shape[3], wi.shape[4])  # [b, 2*samples, h, w]
+        envmap = envmap.view(-1, 3 * self.samples, envmap.shape[3], envmap.shape[4])
+
+        # wi = wi.view(-1, 2 * self.samples, wi.shape[3], wi.shape[4])  # [b, 2*samples, h, w]
         cos_t = torch.unsqueeze(cos_t, dim=1)  # [b, 1, samples, h, w]
         cos_t = torch.tile(cos_t, (1, 3, 1, 1, 1))  # [b, 3, samples, h, w]
 
@@ -89,18 +91,51 @@ class PipeLine(nn.Module):
         nt[:, 3:12, :, :] = nt[:, 3:12, :, :] * basis
 
         # NN forward
-        inp = torch.cat((nt, wi), dim=1)
-        vis = self.unet(inp)  # [b, 3*samples, h, w]  #visibility
-        # vis = torch.unsqueeze(vis, dim=1)
-        # vis = torch.tile(vis, (1, 3, 1, 1, 1))
-        vis = vis.reshape(-1, 3, self.samples, cos_t.shape[3], cos_t.shape[4])
+        inp = torch.cat((nt, envmap), dim=1)
+        T = self.unet(inp)  # [b, 3*samples, h, w]  # Transport / Transfer
+        T = T.reshape(-1, 3, self.samples, cos_t.shape[3], cos_t.shape[4])
 
-        final = albedo_ * cos_t * envmap * vis
+        final = albedo_ * cos_t * T
         final = 2.0 / float(self.samples) * torch.sum(final, dim=2)  # 10 - samples
 
         # final_ = albedo_ * cos_t * envmap
-        final_ = 2.0 / float(self.samples) * torch.sum(vis, dim=2)  # 10 - samples
+        final_ = 2.0 / float(self.samples) * torch.sum(T, dim=2)  # 10 - samples
 
         albedo_tex = torch.cat((self.albedo_tex.textures[0].layer1, self.albedo_tex.textures[1].layer1, self.albedo_tex.textures[2].layer1), dim=1)
 
         return albedo_tex, albedo, final, final_, cos_t
+
+
+
+class PipeLineTex(nn.Module):
+    def __init__(self, W, H, feature_num, use_pyramid=True, view_direction=True, samples=10):
+        super(PipeLine, self).__init__()
+        self.feature_num = feature_num
+        self.use_pyramid = use_pyramid
+        self.view_direction = view_direction
+        self.samples = samples
+
+        self.albedo_tex = Texture(W*2, H*2, 3, False)
+
+    def forward(self, *args):
+        wi, cos_t, envmap, uv_map = args
+
+        # wi : [b, 2, samples, h, w]
+        # cos_t : [b, samples, h, w]
+        # envmap : [b, 3, samples, h, w]
+
+        wi = wi.view(-1, 2 * self.samples, wi.shape[3], wi.shape[4])  # [b, 2*samples, h, w]
+        cos_t = torch.unsqueeze(cos_t, dim=1)  # [b, 1, samples, h, w]
+        cos_t = torch.tile(cos_t, (1, 3, 1, 1, 1))  # [b, 3, samples, h, w]
+
+        # Make Diffuse BRDF
+        albedo = self.albedo_tex(uv_map)  # [b, 3, h, w]
+        albedo_ = torch.unsqueeze(albedo, dim=2)  # [b, 3, 1, h, w]
+        albedo_ = torch.tile(albedo_, (1, 1, cos_t.shape[2], 1, 1))  # [b, 3, samples, h, w]
+
+        final = albedo_ * cos_t * envmap
+        final = 2.0 / float(self.samples) * torch.sum(final, dim=2)  # 10 - samples
+
+        albedo_tex = torch.cat((self.albedo_tex.textures[0].layer1, self.albedo_tex.textures[1].layer1, self.albedo_tex.textures[2].layer1), dim=1)
+
+        return albedo_tex, albedo, final, cos_t

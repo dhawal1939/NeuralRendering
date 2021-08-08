@@ -23,7 +23,7 @@ LOAD = None
 LOAD_STEP = 0
 EPOCH_PER_CHECKPOINT = 10
 MASK_EPOCH = 15
-SAMPLES = 20
+SAMPLES = 10
 
 # =============== Test Configurations ============
 TEST_LOAD = ''

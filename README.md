@@ -198,8 +198,7 @@ scene_dr_perfect_geometry.xml: GT geometry and DR material
 - If you dont have command line output, start blender from the command line to see it
 
 [ OPTIMIZES FOR MATERIAL FROM COLMAP GEOMETRY ]
-- python data/real_dr.py --scene_file /media/aakash/wd1/DATASETS/FISH/scene_dr.xml --data_dir /media/aakash/wd1/DATASETS/FISH/ --image_list_txt /media/aakash/wd1/DATASETS/FISH/colmap_output/dense/0/image-list.txt --epochs 20 --img_width 480 --img_height 270 --alignment_x 0.0 --alignment_y 1.0 --alignment_z 0.0
-- The alignment_vec_* params should be replaced with the vector obtained in the previous step
+- python data/real_dr.py --scene_file /media/aakash/wd1/DATASETS/FISH/scene_dr.xml --data_dir /media/aakash/wd1/DATASETS/FISH/ --image_list_txt /media/aakash/wd1/DATASETS/FISH/colmap_output/dense/0/image-list.txt --epochs 20 --img_width 480 --img_height 270
 
 - MAKE TRAIN DIRECTORY (EXAMPLE 'B,Diff,Cm')
   - Make 'train' and 'test' subdirectories

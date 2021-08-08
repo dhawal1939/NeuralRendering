@@ -53,13 +53,12 @@ class UVDataset(Dataset):
 
         return torch.cat((theta, phi), dim=2)
 
-
     def sample_envmap(self, wi):
         wi[:, :, 0] = wi[:, :, 0] / np.pi * self.envmap.shape[0]
         wi[:, :, 1] = wi[:, :, 1] / (2 * np.pi) * self.envmap.shape[1]
         wi = wi.type(torch.uint8)
 
-        return torch.from_numpy(self.envmap[wi[:, :, 0].reshape(-1).cpu().numpy(), wi[:, :, 1].reshape(-1).cpu().numpy(), :].reshape(wi.shape[0], 3, -1)).cuda()
+        return torch.from_numpy(self.envmap[wi[:, :, 0].reshape(-1).cpu().numpy(), wi[:, :, 1].reshape(-1).cpu().numpy(), :].reshape(wi.shape[0], 3, -1)).type(torch.float).cuda()
 
     def __getitem__(self, idx):
         img = Image.open(os.path.join(self.dir, 'frames/' + self.idx_list[idx] + '.png'), 'r')
@@ -104,5 +103,6 @@ class UVDataset(Dataset):
         sampled_env = sampled_env.reshape(self.crop_size[0], self.crop_size[1], self.samples, 3)
         sampled_env = sampled_env.permute(3, 2, 0, 1)
 
-        return img.type(torch.float), uv_map.type(torch.float), torch.from_numpy(extrinsics).type(torch.float), \
-               wi, cos_t, sampled_env
+        # return img.type(torch.float), uv_map.type(torch.float), wi, cos_t, sampled_env
+        return img.type(torch.float), uv_map.type(torch.float), torch.from_numpy(extrinsics).type(torch.float),\
+                    wi, cos_t, sampled_env

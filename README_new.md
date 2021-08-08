@@ -167,19 +167,19 @@ scene_dr_perfect_geometry.xml: GT geometry and DR material
 - python data/uv_redner.py --input_file /media/aakash/wd1/DATASETS/FISH/cleaned.obj --output_file /media/aakash/wd1/DATASETS/FISH/unwrapped.obj
 - UV unwrapping can also be done in blender (Do it in the next step before exporting as .ply)
 
+[ GET ALIGNMENT VECTOR ]
+- Open the .obj model in blender
+- Copy paste the code from 'data/blender_alignment_vec.py' inside blender python texgt editor
+- Run the script
+- The output will be displayed on the command line, which is the normal vector to be aligned
+- If you dont have command line output, start blender from the command line to see it
+
 - FINAL EXPORT TO PLY FROM BLENDER
   - Export as .ply with Y up and -Z forward
 
 - MAKE MITSUBA SCENE FILES
   - Use template file 'scene_real.xml' from 'data/example_scene_files/'
   - Make 'scene.xml' mitsuba scene description file
-
-[ GET ALIGNMENT VECTOR ]
-- Open the .ply model in blender
-- Copy paste the code from 'data/blender_alignment_vec.py' inside blender python texgt editor
-- Run the script
-- The output will be displayed on the command line, which is the normal vector to be aligned
-- If you dont have command line output, start blender from the command line to see it
 
 - MAKE TRAIN DIRECTORY (EXAMPLE 'B,Diff,Cm')
   - Make 'train' and 'test' subdirectories
@@ -189,9 +189,25 @@ scene_dr_perfect_geometry.xml: GT geometry and DR material
     - uv
     - uv_png
     - transform
+    - forward
+    - sh
+    - env
+    - mask
 
 [ GERERATES TRAINING DATA, SAVES TO 'output_dir' ]
-- python data/real_extract_2.py --scene_file /media/aakash/wd1/DATASETS/FISH/scene.xml --data_dir /media/aakash/wd1/DATASETS/FISH/ --output_dir /media/aakash/wd1/DATASETS/FISH/B,Diff,Cm/ --train_image_list_txt /media/aakash/wd1/DATASETS/FISH/colmap_output/dense/0/image-list.txt --test_image_list_txt /media/aakash/wd1/DATASETS/FISH/colmap_output/colmap_output_test/dense/0/image-list.txt --img_width 960 --img_height 540 --envmap_input /media/aakash/wd1/DATASETS/FISH/envmap.JPG
+- python data/real_extract_2.py --scene_file /media/aakash/wd1/DATASETS/FISH/scene.xml --data_dir /media/aakash/wd1/DATASETS/FISH/ --output_dir /media/aakash/wd1/DATASETS/FISH/B,Diff,Cm/ --train_image_list_txt /media/aakash/wd1/DATASETS/FISH/colmap_output/dense/0/image-list.txt --test_image_list_txt /media/aakash/wd1/DATASETS/FISH/colmap_output/colmap_output_test/dense/0/image-list.txt --img_width 960 --img_height 540 --envmap_input /media/aakash/wd1/DATASETS/FISH/envmap.JPG --alignment_x 0.0 --alignment_y 1.0 --alignment_z 0.0
+- The alignment_vec_* params should be replaced with the vector obtained in the "GET ALIGNMENT VECTOR" step
+
+[ OPTIMIZE FOR ALBEDO TEX ] 
+- python train_new.py --data /media/aakashkt/wd1/NEURAL_RENDERING_DATASETS/WOMAN/B,Diff,Cm/ --checkpoint /media/aakashkt/wd1/NEURAL_RENDERING_DATASETS/WOMAN/dr_tensorboard/ --logdir /media/aakashkt/wd1/NEURAL_RENDERING_DATASETS/WOMAN/dr_tensorboard/ --epoch 1000 --epoch_per_checkpoint 5 --output_dir /media/aakashkt/wd1/NEURAL_RENDERING_DATASETS/WOMAN/
+
+[ SAVE SH, ENV, FORWARD FOR TRAINING AND TEST SET ]
+- python data/real_extract.py --scene_file /media/aakashkt/wd1/NEURAL_RENDERING_DATASETS/WOMAN/scene_dr.xml --data_dir /media/aakashkt/wd1/NEURAL_RENDERING_DATASETS/WOMAN/ --output_dir /media/aakashkt/wd1/NEURAL_RENDERING_DATASETS/WOMAN/B,Diff,Cm/ --train_image_list_txt /media/aakashkt/wd1/NEURAL_RENDERING_DATASETS/WOMAN/colmap_output/dense/0/image-list.txt --test_image_list_txt /media/aakashkt/wd1/NEURAL_RENDERING_DATASETS/WOMAN/colmap_output/colmap_output_test/dense/0/image-list.txt --img_width 960 --img_height 540 --alignment_x 0.043 --alignment_y -0.7631 --alignment_z -0.644
+- The alignment_vec_* params should be replaced with the vector obtained in the "GET ALIGNMENT VECTOR" step
+
+[ COPY FINAL OPTIMZED ALBEO ]
+- Copy the latest .png image from 'dr_log' to 'optimized_texture' and convert it to .exr
+- Name the file 'diffuse_opt.exr'
 
 [ TRAIN NETWORK ]
 - python train_new.py --data /media/aakashkt/wd1/NEURAL_RENDERING_DATASETS/WOMAN/B,Diff,Cm/ --checkpoint ./ --logdir ./ --epoch 1000 --epoch_per_checkpoint 5

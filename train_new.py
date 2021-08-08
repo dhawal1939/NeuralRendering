@@ -1,4 +1,4 @@
-import argparse
+import argparse, cv2
 import numpy as np
 import os
 import random
@@ -28,6 +28,8 @@ parser.add_argument('--checkpoint', type=str, default='/media/dhawals/Data/DATAS
                     help='directory to save checkpoint')
 parser.add_argument('--logdir', type=str, default='/media/dhawals/Data/DATASETS/new_pipeline/WOMAN/checkpoints/',
                     help='directory to save checkpoint')
+parser.add_argument('--output_dir', type=str, default='/media/dhawals/Data/DATASETS/new_pipeline/WOMAN/checkpoints/',
+                    help='directory to save log etc.')
 parser.add_argument('--train', default=config.TRAIN_SET)
 parser.add_argument('--epoch', type=int, default=1000)
 parser.add_argument('--cropw', type=int, default=config.CROP_W)
@@ -84,6 +86,8 @@ def main():
         model = torch.load(os.path.join(args.checkpoint, args.load))
         step = args.load_step
     else:
+        # model = PipeLineTex(args.texturew, args.textureh, args.texture_dim, args.use_pyramid, samples=args.samples,
+        #                  view_direction=args.view_direction)
         model = PipeLine(args.texturew, args.textureh, args.texture_dim, args.use_pyramid, samples=args.samples,
                          view_direction=args.view_direction)
         step = 0
@@ -93,6 +97,7 @@ def main():
     betas = args.betas.split(',')
     betas = [float(x) for x in betas]
     betas = tuple(betas)
+
     optimizer = Adam([
         {'params': model.texture.layer1, 'weight_decay': l2[0], 'lr': args.lr},
         {'params': model.texture.layer2, 'weight_decay': l2[1], 'lr': args.lr},
@@ -101,6 +106,10 @@ def main():
         {'params': model.unet.parameters(), 'lr': 0.1 * args.lr},
         {'params': model.albedo_tex.layer1, 'lr': args.lr}],
         betas=betas, eps=args.eps)
+    # optimizer = Adam([
+    #     {'params': model.albedo_tex.layer1, 'lr': args.lr}],
+    #     betas=betas, eps=args.eps)
+
     model = model.to('cuda')
     criterion = nn.L1Loss()
 
@@ -113,14 +122,17 @@ def main():
         torch.set_grad_enabled(True)
 
         for samples in tqdm(dataloader, desc=f'Train: Epoch {i}'):
+            # images, uv_maps, wi, cos_t, envmap = samples
             images, uv_maps, extrinsics, wi, cos_t, envmap = samples
 
             step += images.shape[0]
             optimizer.zero_grad()
-            RGB_texture, RGB_texture_proj, preds, _, cos_t = model(wi.cuda(), cos_t.cuda(), envmap.cuda(), uv_maps.cuda(),
-                                                          extrinsics.cuda())
-                                                          
-            loss = criterion(preds, images.cuda()) #+ torch.mean( torch.abs(RGB_texture_proj-0.5) )
+
+            # RGB_texture, RGB_texture_proj, preds, cos_t = model(wi.cuda(), cos_t.cuda(), envmap.cuda(), uv_maps.cuda())
+            RGB_texture, RGB_texture_proj, preds, preds_, cos_t = model(wi.cuda(), cos_t.cuda(), envmap.cuda(), uv_maps.cuda(),
+                                                                        extrinsics.cuda())
+            
+            loss = criterion(preds, images.cuda())
             loss.backward()
             optimizer.step()
 
@@ -131,25 +143,31 @@ def main():
         test_loss = 0
         all_preds = []
         all_gt = []
-        all_vis = []
         all_uv = []
         all_albedo = []
+        all_T = []
         idx = 0
         for samples in tqdm(test_dataloader, desc=f'Test: Epoch {i}'):
             if idx == 20:
                 break
 
+            # images, uv_maps, wi, cos_t, envmap = samples
             images, uv_maps, extrinsics, wi, cos_t, envmap = samples
 
+            # RGB_texture, RGB_texture_proj, preds, cos_t = model(wi.cuda(), cos_t.cuda(), envmap.cuda(), uv_maps.cuda())
             RGB_texture, RGB_texture_proj, preds, preds_, cos_t = model(wi.cuda(), cos_t.cuda(), envmap.cuda(), uv_maps.cuda(),
-                                                          extrinsics.cuda())
+                                                                        extrinsics.cuda())
 
-            loss = criterion(preds, images.cuda()) #+ torch.mean( torch.abs(RGB_texture_proj-0.5) )
+            loss = criterion(preds, images.cuda())
             test_loss += loss.item()
 
             output = np.clip(preds[0, :, :, :].detach().cpu().numpy(), 0, 1) ** (1.0 / 2.2)
             output = output * 255.0
             output = output.astype(np.uint8)
+
+            T = np.clip(preds_[0, :, :, :].detach().cpu().numpy(), 0, 1) ** (1.0 / 2.2)
+            T = T * 255.0
+            T = T.astype(np.uint8)
 
             gt = np.clip(images[0, :, :, :].numpy(), 0, 1) ** (1.0 / 2.2)
             gt = gt * 255.0
@@ -158,11 +176,6 @@ def main():
             albedo = np.clip(RGB_texture[0, :, :, :].detach().cpu().numpy(), 0, 1) ** (1.0 / 2.2)
             albedo = albedo * 255.0
             albedo = albedo.astype(np.uint8)
-
-            preds_ = np.clip(preds_[0, :, :, :].detach().cpu().numpy(), 0, 1) ** (1.0 / 2.2)
-            preds_ *= 255.
-            preds_ = preds_.astype('uint8')
-            all_vis.append(preds_)
 
             uv_maps = uv_maps.permute(0, 3, 1, 2)
             uv = np.clip(uv_maps[0, :, :, :].numpy(), 0, 1)
@@ -175,6 +188,7 @@ def main():
             all_gt.append(gt)
             all_uv.append(uv_final)
             all_albedo.append(albedo)
+            all_T.append(T)
 
             idx += 1
 
@@ -184,8 +198,7 @@ def main():
         writer.add_image('test/output', all_preds[ridx], test_step)
         writer.add_image('test/gt', all_gt[ridx], test_step)
         writer.add_image('test/albedo', all_albedo[ridx], test_step)
-        writer.add_image('test/uv', all_uv[ridx], test_step)
-        writer.add_image('test/output-visibility', all_vis[ridx], test_step)
+        writer.add_image('test/transport', all_T[ridx], test_step)
 
         test_step += 1
 
@@ -193,6 +206,10 @@ def main():
         if i % args.epoch_per_checkpoint == 0:
             print('Saving checkpoint')
             torch.save(model, args.checkpoint + time_string + '/epoch_{}.pt'.format(i))
+
+            albedo = np.transpose(all_albedo[0], (1, 2, 0))
+            albedo = cv2.cvtColor(albedo, cv2.COLOR_RGB2BGR)
+            cv2.imwrite('%s/dr_log/%s.png' % (args.output_dir, str(test_step).zfill(5)), albedo)
 
 
 if __name__ == '__main__':

@@ -86,7 +86,7 @@ if __name__ == '__main__':
 
         random.shuffle(img_list)
         for i, img_path in enumerate(img_list):            
-            init_lr = 1e-3
+            init_lr = 1e-2
             
             img_path = img_path.replace('\n', '')
             img_name = img_path.split('/')[-1]
@@ -96,14 +96,12 @@ if __name__ == '__main__':
             # print('%s/video_frames_mask/%s.png' % (args.data_dir, identifier))
 
             gt = load_image('%s/video_frames/%s' % (args.data_dir, img_name), (args.img_width, args.img_height))
-            # mask = load_image('%s/video_frames_mask/%s.png' % (args.data_dir, identifier), (args.img_width, args.img_height))
+            mask = load_image('%s/video_frames_mask/%s.png' % (args.data_dir, identifier), (args.img_width, args.img_height))
 
-            # gt = gt * mask
+            gt = gt * mask
             # print('%s/colmap_output/' % args.data_dir, img_path, 'new_sparse')
 
             p, focal_length, og_width, og_height = camera_pose('%s/colmap_output/' % args.data_dir, img_path, 'new_sparse')
-            # p[11] = 1.8
-            print(p.reshape(4, 4)[:, 3:])
             pose = ' '.join([str(elem) for elem in p])
             eye = np.eye(4).flatten()
             eye = ' '.join([str(elem) for elem in eye])
@@ -111,8 +109,8 @@ if __name__ == '__main__':
             estimated_f = math.sqrt( pow(args.sensor_width, 2) + pow(args.sensor_height, 2) ) * focal_length / math.sqrt( pow(og_width, 2) + pow(og_height, 2) )
             focal_length = estimated_f * 34.6 / args.sensor_width
 
-            scene = load_file(args.scene_file, integrator='path', focal_length=str(focal_length)+'mm', poses=pose, envmap_pose=eye, \
-                        spp=8, width=args.img_width, height=args.img_height)
+            scene = load_file(args.scene_file, integrator='path', focal_length=str(focal_length)+'mm', poses=pose, envmap_pose=env_pose, \
+                        spp=4, width=args.img_width, height=args.img_height)
             # scene = load_file(args.scene_file, integrator='path', focal_length='35mm', poses=pose, envmap_pose=pose, \
             #             spp=8, width=args.img_width, height=args.img_height)
             

@@ -13,7 +13,7 @@ for v in selected_verts:
 
 final = Vector((0, 0, 0))
 final.x = normal.x
-final.y = normal.z
-final.z = -normal.y
+final.y = normal.y
+final.z = normal.z
 
 print(final.normalized())

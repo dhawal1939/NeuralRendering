@@ -37,6 +37,8 @@ def process(args, i, img_path, frames_dir, output_dir, colmap_dir):
     identifier = img_name.replace('.png', '').replace('.jpg', '').replace('.JPG', '').replace('image', '')
 
     gt = load_image('%s/%s/%s' % (args.data_dir, frames_dir, img_name), (args.img_width, args.img_height))
+    mask = load_image('%s/%s_mask/%s.png' % (args.data_dir, frames_dir, identifier), (args.img_width, args.img_height))
+    gt = gt * mask
 
     p, focal_length, og_width, og_height = camera_pose('%s/%s/' % (args.data_dir, colmap_dir), img_path, 'new_sparse')
     pose = ' '.join([str(elem) for elem in p])
@@ -67,7 +69,12 @@ def process(args, i, img_path, frames_dir, output_dir, colmap_dir):
     gt *= 255.0
     gt = gt.astype(np.uint8)
 
+    mask = np.clip(mask, 0, 1)
+    mask *= 255.0
+    mask = mask.astype(np.uint8)
+
     cv2.imwrite('%s/frames/%s.png' % (output_dir, identifier), cv2.cvtColor(gt, cv2.COLOR_RGB2BGR))
+    cv2.imwrite('%s/mask/%s.png' % (output_dir, identifier), mask)
     np.save('%s/uv/%s.npy' % (output_dir, identifier), uv)
     cv2.imwrite('%s/uv_png/%s.png' % (output_dir, identifier), cv2.cvtColor(uv_png, cv2.COLOR_RGB2BGR))
     np.save('%s/extrinsics/%s.npy' % (output_dir, identifier), np.array([tx, ty, tz], dtype=np.float64))
@@ -107,19 +114,20 @@ if __name__ == '__main__':
     # Rotate envmap according to COLMAP mesh
     ########################################
 
-    # envmap = cv2.imread(args.envmap_input)
-    # alignment_vec = np.array([args.alignment_x, args.alignment_y, args.alignment_z], dtype=np.float)
+    envmap = cv2.imread(args.envmap_input)
+    alignment_vec = np.array([args.alignment_x, args.alignment_y, args.alignment_z], dtype=np.float)
 
-    # env_pose = trimesh.geometry.align_vectors(np.array([0.0, -1.0, 0.0]), np.array([0.0, 0.0, 1.0]))[:3, :3]
-    # envmap_out = computeImageAfterRotate(envmap, env_pose)
+    env_pose = trimesh.geometry.align_vectors(np.array([0.0, -1.0, 0.0]), np.array([0.0, 0.0, 1.0]))[:3, :3]
+    envmap_out = computeImageAfterRotate(envmap, env_pose)
 
-    # env_pose = trimesh.geometry.align_vectors(np.array([1.0, 0.0, 0.0]), np.array([0.0, -1.0, 0.0]))[:3, :3]
-    # envmap_out = computeImageAfterRotate(envmap_out, env_pose)
+    env_pose = trimesh.geometry.align_vectors(np.array([1.0, 0.0, 0.0]), np.array([0.0, -1.0, 0.0]))[:3, :3]
+    envmap_out = computeImageAfterRotate(envmap_out, env_pose)
 
-    # env_pose = trimesh.geometry.align_vectors(alignment_vec, np.array([0.0, 0.0, 1.0]))[:3, :3]
-    # envmap_out = computeImageAfterRotate(envmap_out, env_pose)
+    env_pose = trimesh.geometry.align_vectors(alignment_vec, np.array([0.0, 0.0, 1.0]))[:3, :3]
+    envmap_out = computeImageAfterRotate(envmap_out, env_pose)
     
-    # cv2.imwrite('%s/B,Diff,Cm/envmap.jpg' % args.data_dir, envmap_out)
+    cv2.imwrite('%s/B,Diff,Cm/train/envmap.jpg' % args.data_dir, envmap_out)
+    cv2.imwrite('%s/B,Diff,Cm/test/envmap.jpg' % args.data_dir, envmap_out)
 
     ########################################
     # Save UV and transformation matrices

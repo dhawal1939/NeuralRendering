@@ -428,6 +428,10 @@ class AuxIntegrator(SamplingIntegrator):
     def sample(self, scene, sampler, ray, medium=None, active=True):
         result = Vector3f(0.0)
         si = scene.ray_intersect(ray, active)
+
+        emitter_vis = si.emitter(scene, active)
+        emitter_val = ek.select(active, Emitter.eval_vec(emitter_vis, si, active), Vector3f(0.0))
+
         active = si.is_valid() & active
 
         bsdf = si.bsdf(ray)
@@ -454,23 +458,23 @@ class AuxIntegrator(SamplingIntegrator):
         y_2_p1 = Vector3f(0.0)
         y_2_p2 = Vector3f(0.0)
 
-        y_3_n3 = Vector3f(0.0)
-        y_3_n2 = Vector3f(0.0)
-        y_3_n1 = Vector3f(0.0)
-        y_3_0 = Vector3f(0.0)
-        y_3_p1 = Vector3f(0.0)
-        y_3_p2 = Vector3f(0.0)
-        y_3_p3 = Vector3f(0.0)
+        # y_3_n3 = Vector3f(0.0)
+        # y_3_n2 = Vector3f(0.0)
+        # y_3_n1 = Vector3f(0.0)
+        # y_3_0 = Vector3f(0.0)
+        # y_3_p1 = Vector3f(0.0)
+        # y_3_p2 = Vector3f(0.0)
+        # y_3_p3 = Vector3f(0.0)
 
-        y_4_n4 = Vector3f(0.0)
-        y_4_n3 = Vector3f(0.0)
-        y_4_n2 = Vector3f(0.0)
-        y_4_n1 = Vector3f(0.0)
-        y_4_0 = Vector3f(0.0)
-        y_4_p1 = Vector3f(0.0)
-        y_4_p2 = Vector3f(0.0)
-        y_4_p3 = Vector3f(0.0)
-        y_4_p4 = Vector3f(0.0)
+        # y_4_n4 = Vector3f(0.0)
+        # y_4_n3 = Vector3f(0.0)
+        # y_4_n2 = Vector3f(0.0)
+        # y_4_n1 = Vector3f(0.0)
+        # y_4_0 = Vector3f(0.0)
+        # y_4_p1 = Vector3f(0.0)
+        # y_4_p2 = Vector3f(0.0)
+        # y_4_p3 = Vector3f(0.0)
+        # y_4_p4 = Vector3f(0.0)
 
         for wo_ in wo_numpy:
             ctx = BSDFContext()
@@ -494,23 +498,23 @@ class AuxIntegrator(SamplingIntegrator):
             y_2_p1 += y_2_p1_(bsdf_val, theta_, phi_)
             y_2_p2 += y_2_p2_(bsdf_val, theta_, phi_)
 
-            y_3_n3 += y_3_n3_(bsdf_val, theta_, phi_)
-            y_3_n2 += y_3_n2_(bsdf_val, theta_, phi_)
-            y_3_n1 += y_3_n1_(bsdf_val, theta_, phi_)
-            y_3_0 += y_3_0_(bsdf_val, theta_, phi_)
-            y_3_p1 += y_3_p1_(bsdf_val, theta_, phi_)
-            y_3_p2 += y_3_p2_(bsdf_val, theta_, phi_)
-            y_3_p3 += y_3_p3_(bsdf_val, theta_, phi_)
+            # y_3_n3 += y_3_n3_(bsdf_val, theta_, phi_)
+            # y_3_n2 += y_3_n2_(bsdf_val, theta_, phi_)
+            # y_3_n1 += y_3_n1_(bsdf_val, theta_, phi_)
+            # y_3_0 += y_3_0_(bsdf_val, theta_, phi_)
+            # y_3_p1 += y_3_p1_(bsdf_val, theta_, phi_)
+            # y_3_p2 += y_3_p2_(bsdf_val, theta_, phi_)
+            # y_3_p3 += y_3_p3_(bsdf_val, theta_, phi_)
 
-            y_4_n4 += y_4_n4_(bsdf_val, theta_, phi_)
-            y_4_n3 += y_4_n3_(bsdf_val, theta_, phi_)
-            y_4_n2 += y_4_n2_(bsdf_val, theta_, phi_)
-            y_4_n1 += y_4_n1_(bsdf_val, theta_, phi_)
-            y_4_0 += y_4_0_(bsdf_val, theta_, phi_)
-            y_4_p1 += y_4_p1_(bsdf_val, theta_, phi_)
-            y_4_p2 += y_4_p2_(bsdf_val, theta_, phi_)
-            y_4_p3 += y_4_p3_(bsdf_val, theta_, phi_)
-            y_4_p4 += y_4_p4_(bsdf_val, theta_, phi_)
+            # y_4_n4 += y_4_n4_(bsdf_val, theta_, phi_)
+            # y_4_n3 += y_4_n3_(bsdf_val, theta_, phi_)
+            # y_4_n2 += y_4_n2_(bsdf_val, theta_, phi_)
+            # y_4_n1 += y_4_n1_(bsdf_val, theta_, phi_)
+            # y_4_0 += y_4_0_(bsdf_val, theta_, phi_)
+            # y_4_p1 += y_4_p1_(bsdf_val, theta_, phi_)
+            # y_4_p2 += y_4_p2_(bsdf_val, theta_, phi_)
+            # y_4_p3 += y_4_p3_(bsdf_val, theta_, phi_)
+            # y_4_p4 += y_4_p4_(bsdf_val, theta_, phi_)
         
         y_0_0 = y_0_0 * 4 * ek.pi / num_samples
 
@@ -524,27 +528,27 @@ class AuxIntegrator(SamplingIntegrator):
         y_2_p1 = y_2_p1 * 4 * ek.pi / num_samples
         y_2_p2 = y_2_p2 * 4 * ek.pi / num_samples
 
-        y_3_n3 = y_3_n3 * 4 * ek.pi / num_samples
-        y_3_n2 = y_3_n2 * 4 * ek.pi / num_samples
-        y_3_n1 = y_3_n1 * 4 * ek.pi / num_samples
-        y_3_0 = y_3_0 * 4 * ek.pi / num_samples
-        y_3_p1 = y_3_p1 * 4 * ek.pi / num_samples
-        y_3_p2 = y_3_p2 * 4 * ek.pi / num_samples
-        y_3_p3 = y_3_p3 * 4 * ek.pi / num_samples
+        # y_3_n3 = y_3_n3 * 4 * ek.pi / num_samples
+        # y_3_n2 = y_3_n2 * 4 * ek.pi / num_samples
+        # y_3_n1 = y_3_n1 * 4 * ek.pi / num_samples
+        # y_3_0 = y_3_0 * 4 * ek.pi / num_samples
+        # y_3_p1 = y_3_p1 * 4 * ek.pi / num_samples
+        # y_3_p2 = y_3_p2 * 4 * ek.pi / num_samples
+        # y_3_p3 = y_3_p3 * 4 * ek.pi / num_samples
 
-        y_4_n4 = y_4_n4 * 4 * ek.pi / num_samples
-        y_4_n3 = y_4_n3 * 4 * ek.pi / num_samples
-        y_4_n2 = y_4_n2 * 4 * ek.pi / num_samples
-        y_4_n1 = y_4_n1 * 4 * ek.pi / num_samples
-        y_4_0 = y_4_0 * 4 * ek.pi / num_samples
-        y_4_p1 = y_4_p1 * 4 * ek.pi / num_samples
-        y_4_p2 = y_4_p2 * 4 * ek.pi / num_samples
-        y_4_p3 = y_4_p3 * 4 * ek.pi / num_samples
-        y_4_p4 = y_4_p4 * 4 * ek.pi / num_samples
+        # y_4_n4 = y_4_n4 * 4 * ek.pi / num_samples
+        # y_4_n3 = y_4_n3 * 4 * ek.pi / num_samples
+        # y_4_n2 = y_4_n2 * 4 * ek.pi / num_samples
+        # y_4_n1 = y_4_n1 * 4 * ek.pi / num_samples
+        # y_4_0 = y_4_0 * 4 * ek.pi / num_samples
+        # y_4_p1 = y_4_p1 * 4 * ek.pi / num_samples
+        # y_4_p2 = y_4_p2 * 4 * ek.pi / num_samples
+        # y_4_p3 = y_4_p3 * 4 * ek.pi / num_samples
+        # y_4_p4 = y_4_p4 * 4 * ek.pi / num_samples
 
-        result.x = ek.select(active, si.uv.x, Float(0.0))
-        result.y = ek.select(active, si.uv.y, Float(0.0))
-        result.z = ek.select(active, Float(1.0), Float(0.0))
+        result.x = emitter_val.x
+        result.y = emitter_val.y
+        result.z = emitter_val.z
 
         return result, si.is_valid(), [ Float(y_0_0[0]), Float(y_0_0[1]), Float(y_0_0[2]),\
                                         Float(y_1_n1[0]), Float(y_1_n1[1]), Float(y_1_n1[2]),\
@@ -554,23 +558,7 @@ class AuxIntegrator(SamplingIntegrator):
                                         Float(y_2_n1[0]), Float(y_2_n1[1]), Float(y_2_n1[2]),\
                                         Float(y_2_0[0]), Float(y_2_0[1]), Float(y_2_0[2]),\
                                         Float(y_2_p1[0]), Float(y_2_p1[1]), Float(y_2_p1[2]),\
-                                        Float(y_2_p2[0]), Float(y_2_p2[1]), Float(y_2_p2[2]),\
-                                        Float(y_3_n3[0]), Float(y_3_n3[1]), Float(y_3_n3[2]),\
-                                        Float(y_3_n2[0]), Float(y_3_n2[1]), Float(y_3_n2[2]),\
-                                        Float(y_3_n1[0]), Float(y_3_n1[1]), Float(y_3_n1[2]),\
-                                        Float(y_3_0[0]), Float(y_3_0[1]), Float(y_3_0[2]),\
-                                        Float(y_3_p1[0]), Float(y_3_p1[1]), Float(y_3_p1[2]),\
-                                        Float(y_3_p2[0]), Float(y_3_p2[1]), Float(y_3_p2[2]),\
-                                        Float(y_3_p3[0]), Float(y_3_p3[1]), Float(y_3_p3[2]),\
-                                        Float(y_4_n4[0]), Float(y_4_n4[1]), Float(y_4_n4[2]),\
-                                        Float(y_4_n3[0]), Float(y_4_n3[1]), Float(y_4_n3[2]),\
-                                        Float(y_4_n2[0]), Float(y_4_n2[1]), Float(y_4_n2[2]),\
-                                        Float(y_4_n1[0]), Float(y_4_n1[1]), Float(y_4_n1[2]),\
-                                        Float(y_4_0[0]), Float(y_4_0[1]), Float(y_4_0[2]),\
-                                        Float(y_4_p1[0]), Float(y_4_p1[1]), Float(y_4_p1[2]),\
-                                        Float(y_4_p2[0]), Float(y_4_p2[1]), Float(y_4_p2[2]),\
-                                        Float(y_4_p3[0]), Float(y_4_p3[1]), Float(y_4_p3[2]),\
-                                        Float(y_4_p4[0]), Float(y_4_p4[1]), Float(y_4_p4[2])]
+                                        Float(y_2_p2[0]), Float(y_2_p2[1]), Float(y_2_p2[2])]
 
         # return result, si.is_valid(), [ Float(y_0_0[0]), Float(y_0_0[1]), Float(y_0_0[2]),\
         #                                 Float(y_1_n1[0]), Float(y_1_n1[1]), Float(y_1_n1[2]),\
