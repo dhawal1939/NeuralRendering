@@ -42,14 +42,16 @@ class VGG16_3_3(nn.Module):
 
 		return x
 
-class PerceptualLoss:
+class PerceptualLoss(nn.Module):
 
 	def __init__(self):
+		super().__init__()
+
 		self.vgg = VGG16_3_3()
 		self.l2 = nn.MSELoss()
 		self.l1 = nn.L1Loss()
 
-	def calculate(self, output, target):
+	def forward(self, output, target):
 		output_vgg = self.vgg(output)
 		target_vgg = self.vgg(target)
 

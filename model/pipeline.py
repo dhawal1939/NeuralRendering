@@ -9,7 +9,7 @@ import torch.nn.functional as F
 sys.path.append('..')
 from model.texture import Texture,TextureMapper
 from model.unet import TestUNet,MaskUNet
-
+from model.unet_og import UNet
 
 class PipeLineSH(nn.Module):
     def __init__(self, W, H, feature_num, use_pyramid=True, view_direction=True):
@@ -85,7 +85,8 @@ class PipeLineMask(nn.Module):
         self.use_pyramid = use_pyramid
         self.view_direction = view_direction
         self.texture = Texture(W, H, feature_num, use_pyramid)
-        self.unet = MaskUNet(feature_num, 1)
+        # self.unet = MaskUNet(feature_num, 1)
+        self.unet = UNet(feature_num, 1)
 
     def _spherical_harmonics_basis(self, extrinsics):
         '''

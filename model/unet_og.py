@@ -96,15 +96,15 @@ class UNet(nn.Module):
 
     def __init__(self, input_channels, output_channels):
         super(UNet, self).__init__()
-        self.down1 = down(input_channels, 26)
-        self.down2 = down(26, 26)
-        self.down3 = down(26, 26)
-        self.down4 = down(26, 26)
+        self.down1 = down(input_channels, 32)
+        self.down2 = down(32, 64)
+        self.down3 = down(64, 128)
+        self.down4 = down(128, 256)
 
-        self.up1 = up(26, 26, output_pad=1, concat=False)
-        self.up2 = up(52, 26)
-        self.up3 = up(52, 26)
-        self.up4 = up(52, output_channels, final=True, tanh=False)
+        self.up1 = up(256, 128, output_pad=1, concat=False)
+        self.up2 = up(128+128, 64)
+        self.up3 = up(64+64, 32)
+        self.up4 = up(32+32, output_channels, final=True, tanh=False)
 
     # Adjusting for the input of real data, 176x176
     def forward(self, x):

@@ -22,7 +22,7 @@ EPS = 1e-8
 LOAD = None
 LOAD_STEP = 0
 EPOCH_PER_CHECKPOINT = 10
-MASK_EPOCH = 15
+MASK_EPOCH = 10
 SAMPLES = 10
 
 # =============== Test Configurations ============

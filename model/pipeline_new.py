@@ -139,37 +139,37 @@ class PipeLine(nn.Module):
         return sh_bands
 
     def forward(self, *args):
-        wi, cos_t, envmap, uv_map, extrinsics = args
+        wi, envmap, uv_map, extrinsics = args
 
         # wi : [b, 2, samples, h, w]
         # cos_t : [b, samples, h, w]
         # envmap : [b, 3, samples, h, w]
 
-        cos_t = torch.unsqueeze(cos_t, dim=1)  # [b, 1, samples, h, w]
-        cos_t = torch.tile(cos_t, (1, 3, 1, 1, 1))  # [b, 3, samples, h, w]
+        # cos_t = torch.unsqueeze(cos_t, dim=1)  # [b, 1, samples, h, w]
+        # cos_t = torch.tile(cos_t, (1, 3, 1, 1, 1))  # [b, 3, samples, h, w]
 
         # Make Diffuse BRDF
         albedo = self.albedo_tex(uv_map)  # [b, 3, h, w]
         albedo_ = torch.unsqueeze(albedo, dim=2)  # [b, 3, 1, h, w]
-        albedo_ = torch.tile(albedo_, (1, 1, cos_t.shape[2], 1, 1))  # [b, 3, samples, h, w]
-        albedo_ = albedo_ * cos_t
+        albedo_ = torch.tile(albedo_, (1, 1, wi.shape[2], 1, 1))  # [b, 3, samples, h, w]
+        # albedo_ = albedo_ * cos_t
 
         # Forward
         forward = albedo_ * envmap
         forward = torch.sum(forward, dim=2, keepdim=False) # [b, 3, h, w]
 
         # SH project
-        y_0_0 = 2*np.pi * torch.mean( y_0_0_(albedo_, wi[:, 0:1, :, :, :], wi[:, 1:2, :, :, :]), dim=2 ) # [b, 3, h, w]
+        y_0_0 = torch.mean( y_0_0_(albedo_, wi[:, 0:1, :, :, :], wi[:, 1:2, :, :, :]), dim=2 ) # [b, 3, h, w]
 
-        y_1_n1 = 2*np.pi * torch.mean( y_1_n1_(albedo_, wi[:, 0:1, :, :, :], wi[:, 1:2, :, :, :]), dim=2 )
-        y_1_0 = 2*np.pi * torch.mean( y_1_0_(albedo_, wi[:, 0:1, :, :, :], wi[:, 1:2, :, :, :]), dim=2 )
-        y_1_p1 = 2*np.pi * torch.mean( y_1_p1_(albedo_, wi[:, 0:1, :, :, :], wi[:, 1:2, :, :, :]), dim=2 )
+        y_1_n1 = torch.mean( y_1_n1_(albedo_, wi[:, 0:1, :, :, :], wi[:, 1:2, :, :, :]), dim=2 )
+        y_1_0 = torch.mean( y_1_0_(albedo_, wi[:, 0:1, :, :, :], wi[:, 1:2, :, :, :]), dim=2 )
+        y_1_p1 = torch.mean( y_1_p1_(albedo_, wi[:, 0:1, :, :, :], wi[:, 1:2, :, :, :]), dim=2 )
 
-        y_2_n2 = 2*np.pi * torch.mean( y_2_n2_(albedo_, wi[:, 0:1, :, :, :], wi[:, 1:2, :, :, :]), dim=2 )
-        y_2_n1 = 2*np.pi * torch.mean( y_2_n1_(albedo_, wi[:, 0:1, :, :, :], wi[:, 1:2, :, :, :]), dim=2 )
-        y_2_0 = 2*np.pi * torch.mean( y_2_0_(albedo_, wi[:, 0:1, :, :, :], wi[:, 1:2, :, :, :]), dim=2 )
-        y_2_p1 = 2*np.pi * torch.mean( y_2_p1_(albedo_, wi[:, 0:1, :, :, :], wi[:, 1:2, :, :, :]), dim=2 )
-        y_2_p2 = 2*np.pi * torch.mean( y_2_p2_(albedo_, wi[:, 0:1, :, :, :], wi[:, 1:2, :, :, :]), dim=2 )
+        y_2_n2 = torch.mean( y_2_n2_(albedo_, wi[:, 0:1, :, :, :], wi[:, 1:2, :, :, :]), dim=2 )
+        y_2_n1 = torch.mean( y_2_n1_(albedo_, wi[:, 0:1, :, :, :], wi[:, 1:2, :, :, :]), dim=2 )
+        y_2_0 = torch.mean( y_2_0_(albedo_, wi[:, 0:1, :, :, :], wi[:, 1:2, :, :, :]), dim=2 )
+        y_2_p1 = torch.mean( y_2_p1_(albedo_, wi[:, 0:1, :, :, :], wi[:, 1:2, :, :, :]), dim=2 )
+        y_2_p2 = torch.mean( y_2_p2_(albedo_, wi[:, 0:1, :, :, :], wi[:, 1:2, :, :, :]), dim=2 )
 
         f = torch.cat((y_0_0, y_1_n1, y_1_0, y_1_p1, y_2_n2, y_2_n1, y_2_0, y_2_p1, y_2_p2), dim=1) # [b, 3*9, h, w]
 

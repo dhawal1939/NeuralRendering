@@ -131,9 +131,12 @@ def main():
     #     betas=betas, eps=args.eps)
 
     model = model.to('cuda')
-    criterion = nn.L1Loss()
+    # criterion = nn.L1Loss()
+    criterion = PerceptualLoss()
     model_mask = model_mask.to('cuda')
     criterion_mask = nn.BCEWithLogitsLoss()
+
+    print('Mask Training started', flush=True)
     for i in range(1, 1+args.mask_epoch):
         print('Epoch {}'.format(i))
 
@@ -198,7 +201,9 @@ def main():
         if i % args.epoch_per_checkpoint == 0:
             print('Saving checkpoint')
             torch.save(model_mask, checkpoint_dir+'/mask_epoch_{}.pt'.format(i))
-
+    
+    del mask_dataloader
+    del mask_dataset
 
     print('Training started', flush=True)
     model_mask.eval()
@@ -210,7 +215,7 @@ def main():
         torch.set_grad_enabled(True)
 
         for samples in tqdm(dataloader, desc=f'Train: Epoch {i}'):
-            images, uv_maps, mask, extrinsics, wi, cos_t, envmap = samples
+            images, uv_maps, mask, extrinsics, wi, envmap = samples
             mask = mask.cuda()
             RGB_texture_masks, net_masks = model_mask(uv_maps.cuda(), extrinsics.cuda())
             mask_sigmoid = nn.Sigmoid()(net_masks).clone().detach()
@@ -221,7 +226,7 @@ def main():
             step += images.shape[0]
             optimizer.zero_grad()
 
-            RGB_texture, preds, forward = model(wi.cuda(), cos_t.cuda(), envmap.cuda(), uv_maps.cuda(), extrinsics.cuda())
+            RGB_texture, preds, forward = model(wi.cuda(), envmap.cuda(), uv_maps.cuda(), extrinsics.cuda())
             preds *= mask_sigmoid
             forward *= mask
             
@@ -244,7 +249,7 @@ def main():
             if idx == 20:
                 break
 
-            images, uv_maps, mask, extrinsics, wi, cos_t, envmap = samples
+            images, uv_maps, mask, extrinsics, wi, envmap = samples
             mask = mask.cuda()
             RGB_texture_masks, net_masks = model_mask(uv_maps.cuda(), extrinsics.cuda())
             
@@ -253,7 +258,7 @@ def main():
             mask_sigmoid[mask_sigmoid <0.5 ] = 0
             images = images.cuda() * mask
 
-            RGB_texture, preds, forward = model(wi.cuda(), cos_t.cuda(), envmap.cuda(), uv_maps.cuda(), extrinsics.cuda())
+            RGB_texture, preds, forward = model(wi.cuda(), envmap.cuda(), uv_maps.cuda(), extrinsics.cuda())
             preds *= mask_sigmoid
             forward *= mask
 

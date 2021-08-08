@@ -60,9 +60,9 @@ class UVDataset(Dataset):
 
         disk_point = self.concentric_sample_disk(n)
         xy = disk_point[:, :, 0] * disk_point[:, :, 1]
-        z = torch.sqrt(torch.where(1 - xy < 0., 0.0, 1-xy))
+        z = torch.sqrt(torch.where(torch.cuda.FloatTensor([1]) - xy < 0., torch.cuda.FloatTensor([0.]), torch.cuda.FloatTensor([1.]) - xy))
 
-        wi_d = torch.cat((disk_point, z), dim=-1)
+        wi_d = torch.cat((disk_point, torch.unsqueeze(z, dim=-1)), dim=-1)
 
         # wi_d = Vector3(x=disk_point.x, y=disk_point.y, z=z)
         # wi = np.matmul(m_d, wi_d.as_numpy())
@@ -132,8 +132,9 @@ class UVDataset(Dataset):
         # wi = self.sample_hemishpere(self.samples)  # [self.samples, 3]
         # wi = np.tile(wi, (transform.shape[0], 1, 1))  # [hxw, self.samples, 3]
 
-        wi = self.sample_hemishpere((transform.shape[0], self.samples))
-        cos_t = wi[:, :, 2].type(torch.float32)  # [hxw, self.samples]
+        # wi = self.sample_hemishpere((transform.shape[0], self.samples))
+        wi = self.cosine_sample_hemisphere((transform.shape[0], self.samples))
+        # cos_t = wi[:, :, 2].type(torch.float32)  # [hxw, self.samples]
 
         wi = (transform @ wi.permute(0, 2, 1)).permute(0, 2, 1)  # [hxw, samples, 3]
         wi /= (torch.linalg.norm(wi, dim=2, keepdims=True) + self.tiny_number)
@@ -142,10 +143,10 @@ class UVDataset(Dataset):
         sampled_env = self.sample_envmap(wi)  # [hxw, self.samples, 3]
 
         wi = wi.reshape(self.crop_size[0], self.crop_size[1], self.samples, 2).permute(3, 2, 0, 1)
-        cos_t = cos_t.reshape(self.crop_size[0], self.crop_size[1], self.samples).permute(2, 0, 1)
+        # cos_t = cos_t.reshape(self.crop_size[0], self.crop_size[1], self.samples).permute(2, 0, 1)
         sampled_env = sampled_env.reshape(self.crop_size[0], self.crop_size[1], self.samples, 3)
         sampled_env = sampled_env.permute(3, 2, 0, 1)
 
         # return img.type(torch.float), uv_map.type(torch.float), wi, cos_t, sampled_env
         return img.type(torch.float), uv_map.type(torch.float), mask.type(torch.float),\
-                torch.from_numpy(extrinsics).type(torch.float), wi, cos_t, sampled_env
+                torch.from_numpy(extrinsics).type(torch.float), wi, sampled_env
