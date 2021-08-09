@@ -192,15 +192,11 @@ scene_dr_perfect_geometry.xml: GT geometry and DR material
     - mask
 
 [ GERERATES TRAINING DATA, SAVES TO 'output_dir' ]
-- python data/real_extract_2.py --scene_file /media/aakash/wd1/DATASETS/FISH/scene.xml --data_dir /media/aakash/wd1/DATASETS/FISH/ --output_dir /media/aakash/wd1/DATASETS/FISH/B,Diff,Cm/ --train_image_list_txt /media/aakash/wd1/DATASETS/FISH/colmap_output/dense/0/image-list.txt --test_image_list_txt /media/aakash/wd1/DATASETS/FISH/colmap_output/colmap_output_test/dense/0/image-list.txt --img_width 960 --img_height 540
+- python data/real_extract_2.py --scene_file /media/aakash/wd1/DATASETS/FISH/scene.xml --data_dir /media/aakash/wd1/DATASETS/FISH/ --output_dir /media/aakash/wd1/DATASETS/FISH/B,Diff,Cm/ --train_image_list_txt /media/aakash/wd1/DATASETS/FISH/colmap_output/dense/0/image-list.txt --test_image_list_txt /media/aakash/wd1/DATASETS/FISH/colmap_output/colmap_output_test/dense/0/image-list.txt --img_width 960 --img_height 540 --alignment_x 0.043 --alignment_y -0.7631 --alignment_z -0.644
 - The alignment_vec_* params should be replaced with the vector obtained in the "GET ALIGNMENT VECTOR" step
 
 [ OPTIMIZE FOR ALBEDO TEX ] 
-- python train_new.py --data /media/aakashkt/wd1/NEURAL_RENDERING_DATASETS/WOMAN/B,Diff,Cm/ --checkpoint /media/aakashkt/wd1/NEURAL_RENDERING_DATASETS/WOMAN/dr_tensorboard/ --logdir /media/aakashkt/wd1/NEURAL_RENDERING_DATASETS/WOMAN/dr_tensorboard/ --epoch 1000 --epoch_per_checkpoint 5 --output_dir /media/aakashkt/wd1/NEURAL_RENDERING_DATASETS/WOMAN/
-
-[ SAVE SH, ENV, FORWARD FOR TRAINING AND TEST SET ]
-- python data/real_extract.py --scene_file /media/aakashkt/wd1/NEURAL_RENDERING_DATASETS/WOMAN/scene_dr.xml --data_dir /media/aakashkt/wd1/NEURAL_RENDERING_DATASETS/WOMAN/ --output_dir /media/aakashkt/wd1/NEURAL_RENDERING_DATASETS/WOMAN/B,Diff,Cm/ --train_image_list_txt /media/aakashkt/wd1/NEURAL_RENDERING_DATASETS/WOMAN/colmap_output/dense/0/image-list.txt --test_image_list_txt /media/aakashkt/wd1/NEURAL_RENDERING_DATASETS/WOMAN/colmap_output/colmap_output_test/dense/0/image-list.txt --img_width 960 --img_height 540 --alignment_x 0.043 --alignment_y -0.7631 --alignment_z -0.644
-- The alignment_vec_* params should be replaced with the vector obtained in the "GET ALIGNMENT VECTOR" step
+- python train_new.py --data /media/aakashkt/wd1/NEURAL_RENDERING_DATASETS/WOMAN/0-COMB-Dataset/ --checkpoint /media/aakashkt/wd1/NEURAL_RENDERING_DATASETS/WOMAN/dr_tensorboard/ --logdir /media/aakashkt/wd1/NEURAL_RENDERING_DATASETS/WOMAN/dr_tensorboard/ --epoch 1000 --epoch_per_checkpoint 5 --output_dir /media/aakashkt/wd1/NEURAL_RENDERING_DATASETS/WOMAN/
 
 [ COPY FINAL OPTIMZED ALBEO ]
 - Copy the latest .png image from 'dr_log' to 'optimized_texture' and convert it to .exr
