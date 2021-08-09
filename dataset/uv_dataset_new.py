@@ -27,47 +27,34 @@ class UVDataset(Dataset):
         return len(self.idx_list)
 
     def concentric_sample_disk(self, n):
-        r1, r2 = torch.rand(n, dtype=torch.float32).cuda(), torch.rand(n, dtype=torch.float32).cuda()
-
-        zero_x_y = torch.where(r1 + r2 == 0, True, False)
+        r1, r2 = torch.rand(n, dtype=torch.float32).cuda() * 2.0 - 1.0, torch.rand(n, dtype=torch.float32).cuda() * 2.0 - 1.0
+        
+        zero_x_y = torch.where(r1 == 0, True, False)
+        zero_x_y = torch.logical_and(zero_x_y, torch.where(r2 == 0, True, False))
         zero_x_y = torch.stack((zero_x_y, zero_x_y), dim=-1)
         zeros = torch.zeros((*n, 2)).cuda()
-
+        
         c1, c2 = 4 * r1, 4 * r2
-        x = torch.where(r1 > r2, torch.cos(np.pi * r2 / c1), torch.cos(np.pi / 2 - np.pi * r1 / c2))
-        y = torch.where(r1 > r2, torch.sin(np.pi * r2 / c1), torch.sin(np.pi / 2 - np.pi * r1 / c2))
-
-        r = torch.where(r1 > r2, r1, r2)
-
+        x = torch.where(torch.abs(r1) > torch.abs(r2), torch.cos(np.pi * r2 / c1), torch.cos(np.pi / 2 - np.pi * r1 / c2))
+        y = torch.where(torch.abs(r1) > torch.abs(r2), torch.sin(np.pi * r2 / c1), torch.sin(np.pi / 2 - np.pi * r1 / c2))
+        
+        r = torch.where(torch.abs(r1) > torch.abs(r2), r1, r2)
         r = torch.stack((r, r), dim=-1)
-
+        
         points = r * torch.stack((x, y), dim=-1)
-
-        # theta = 0.0
-        # r = 0.0
-        # if(abs(r1) > abs(r2)):
-        #     r = r1
-        #     theta = math.pi * r2 / (4 * r1)
-        # else:
-        #     r = r2
-        #     theta = (math.pi / 2) - (math.pi * r1 / (4 * r2))
-
-        # return Vector2(x=math.cos(theta), y=math.sin(theta)) * r
-
+        
         return torch.where(zero_x_y, zeros, points)
-
+        
     def cosine_sample_hemisphere(self, n):
-
         disk_point = self.concentric_sample_disk(n)
-        xy = disk_point[:, :, 0] * disk_point[:, :, 1]
-        z = torch.sqrt(torch.where(torch.cuda.FloatTensor([1]) - xy < 0., torch.cuda.FloatTensor([0.]), torch.cuda.FloatTensor([1.]) - xy))
-
+        xx = disk_point[:,:, 0] ** 2
+        yy = disk_point[:,:, 1] ** 2
+        z = torch.cuda.FloatTensor([1]) - xx - yy
+        z = torch.sqrt(torch.where(z < 0., torch.cuda.FloatTensor([0.]), z))
+        
         wi_d = torch.cat((disk_point, torch.unsqueeze(z, dim=-1)), dim=-1)
-
-        # wi_d = Vector3(x=disk_point.x, y=disk_point.y, z=z)
-        # wi = np.matmul(m_d, wi_d.as_numpy())
-        # wi = Vector3(x=wi[0], y=wi[1], z=wi[2])
-        return wi_d 
+        wi_d = wi_d / (torch.linalg.norm(wi_d, dim=1, keepdims=True) + 1e-8)
+        return wi_d
 
     def sample_hemishpere(self, n):
         eta_1, eta_2 = torch.rand(n, dtype=torch.float32).cuda(), torch.rand(n, dtype=torch.float32).cuda()
