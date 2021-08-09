@@ -35,6 +35,10 @@ def process(args, i, img_path, frames_dir, output_dir, colmap_dir, env_pose):
     img_name = img_path.split('/')[-1]
     identifier = img_name.replace('.png', '').replace('.jpg', '').replace('.JPG', '').replace('image', '')
 
+    if not os.path.exists('%s/%s/%s' % (args.data_dir, frames_dir, img_name)):
+        print('%s/%s/%s' % (args.data_dir, frames_dir, img_name), 'does not exists')
+        return
+
     gt = load_image('%s/%s/%s' % (args.data_dir, frames_dir, img_name), (args.img_width, args.img_height))
     mask = load_image('%s/%s_mask/%s.png' % (args.data_dir, frames_dir, identifier), (args.img_width, args.img_height))
     gt = gt * mask + (1-mask)

@@ -96,6 +96,9 @@ if __name__ == '__main__':
             print('########################################')
             print('%s/video_frames/%s.png' % (args.data_dir, identifier))
             print('########################################')
+            if not os.path.exists('%s/video_frames/%s' % (args.data_dir, img_name)):
+                print('%s/video_frames/%s' % (args.data_dir, img_name), 'does not exists')
+                continue
 
             gt = load_image('%s/video_frames/%s' % (args.data_dir, img_name), (args.img_width, args.img_height))
             mask = load_image('%s/video_frames_mask/%s.png' % (args.data_dir, identifier), (args.img_width, args.img_height))

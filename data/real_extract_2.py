@@ -1,6 +1,7 @@
 import torch, os, sys, cv2, json, argparse, random, glob, struct, math, time, trimesh
 import torch.nn as nn
 from torch.nn import init
+from pathlib import Path
 import functools
 import torch.optim as optim
 
@@ -35,6 +36,10 @@ def process(args, i, img_path, frames_dir, output_dir, colmap_dir):
     img_path = img_path.replace('\n', '')
     img_name = img_path.split('/')[-1]
     identifier = img_name.replace('.png', '').replace('.jpg', '').replace('.JPG', '').replace('image', '')
+    
+    if not os.path.exists('%s/%s/%s' % (args.data_dir, frames_dir, img_name)):
+        print('%s/%s/%s' % (args.data_dir, frames_dir, img_name), 'does not exists')
+        return
 
     gt = load_image('%s/%s/%s' % (args.data_dir, frames_dir, img_name), (args.img_width, args.img_height))
     mask = load_image('%s/%s_mask/%s.png' % (args.data_dir, frames_dir, identifier), (args.img_width, args.img_height))
@@ -92,7 +97,7 @@ if __name__ == '__main__':
     parser.add_argument('--envmap_input', type=str, default='')
     parser.add_argument('--scene_file', type=str, default='pinecone_dr.xml')
     parser.add_argument('--data_dir', type=str, default='./', help='')
-    parser.add_argument('--output_dir', type=str, default='./', help='')
+    # parser.add_argument('--output_dir', type=str, default='./', help='')
     parser.add_argument('--train_image_list_txt', type=str, default='./', help='')
     parser.add_argument('--test_image_list_txt', type=str, default='./', help='')
     parser.add_argument('--sensor_width', type=float, default=6.4) # Sensor width in mm, default for ROG phone 2
@@ -107,6 +112,16 @@ if __name__ == '__main__':
 
     IMG_WIDTH = args.img_width
     IMG_HEIGHT = args.img_height
+
+    output_parent = Path(args.data_dir) / '0-COMB-Dataset'
+    sub_folders  = 'extrinsics frames mask transform uv uv_png'.split()
+    Path(output_parent / 'texture_output').mkdir(parents=True, exist_ok=True)
+
+    for _fol in ['train', 'test']:
+        for _sub_folder in sub_folders:
+            _ = output_parent / _fol /_sub_folder
+            _.mkdir(parents=True, exist_ok=True)
+
     register_integrator('transform_integrator', lambda props: TransformIntegrator(props))
     Thread.thread().file_resolver().append(os.path.dirname(args.scene_file))
 
@@ -115,7 +130,7 @@ if __name__ == '__main__':
     ########################################
 
     envmap = cv2.imread(args.envmap_input)
-    alignment_vec = np.array([args.alignment_x, args.alignment_y, args.alignment_z], dtype=np.float)
+    alignment_vec = np.array([args.alignment_x, args.alignment_y, args.alignment_z], dtype=np.float64)
 
     env_pose = trimesh.geometry.align_vectors(np.array([0.0, -1.0, 0.0]), np.array([0.0, 0.0, 1.0]))[:3, :3]
     envmap_out = computeImageAfterRotate(envmap, env_pose)
@@ -133,6 +148,8 @@ if __name__ == '__main__':
     # Save UV and transformation matrices
     ########################################
 
+
+
     frames_dir = 'video_frames'
     img_list_file = sorted(open(args.train_image_list_txt, 'r'))
     img_list = []
@@ -140,8 +157,8 @@ if __name__ == '__main__':
         img_list.append(l)
 
     for i, img_path in enumerate(img_list):
-        process(args, i, img_path, frames_dir, args.output_dir+'/train/', 'colmap_output/')
-    
+        process(args, i, img_path, frames_dir, str(output_parent)+'/train/', 'colmap_output/')
+
     # Test
     frames_dir = 'video_frames_test'
     img_list_file = sorted(open(args.test_image_list_txt, 'r'))
@@ -150,7 +167,7 @@ if __name__ == '__main__':
         img_list.append(l)
 
     for i, img_name in enumerate(img_list):
-        process(args, i, img_name, frames_dir, args.output_dir+'/test/', 'colmap_output/colmap_output_test/')
+        process(args, i, img_name, frames_dir, str(output_parent)+'/test/', 'colmap_output/colmap_output_test/')
 
 
     
