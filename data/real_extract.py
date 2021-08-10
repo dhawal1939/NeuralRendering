@@ -22,6 +22,7 @@ import pyexr
 import enoki as ek
 import mitsuba
 mitsuba.set_variant('gpu_rgb')
+from pathlib import Path
 
 from mitsuba.core import Vector3f, Float, Float32, Float64, Thread, xml, Spectrum, depolarize, RayDifferential3f, Frame3f, warp, Bitmap, Struct
 from mitsuba.core import math as m_math
@@ -125,6 +126,14 @@ if __name__ == '__main__':
     IMG_WIDTH = args.img_width
     IMG_HEIGHT = args.img_height
     register_integrator('auxintegrator', lambda props: sh.AuxIntegrator(props))
+    
+    output_parent = Path(args.output_dir)
+    sub_folders  = 'env  extrinsics  forward  frames  mask  sh  uv  uv_png'.split()
+
+    for _fol in ['train', 'test']:
+        for _sub_folder in sub_folders:
+            _ = output_parent / _fol /_sub_folder
+            _.mkdir(parents=True, exist_ok=True)
 
     Thread.thread().file_resolver().append(os.path.dirname(args.scene_file))
 

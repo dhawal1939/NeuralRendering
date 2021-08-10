@@ -28,6 +28,7 @@ from mitsuba.python.autodiff import render, render_torch, write_bitmap, Adam
 import time
 import cv2, imageio
 import numpy as np 
+from pathlib import Path
 
 from utils import *
 from poses.read_model import camera_pose
@@ -60,6 +61,11 @@ if __name__ == '__main__':
     parser.add_argument('--alignment_z', type=float, default=0.0)
 
     args = parser.parse_args()
+    
+    _folders = 'dr_log dr_tensorboard optimized_textures test train'.split()
+    for _fol in _folders:
+        (Path(args.data_dir)/ '0-DR-Dataset' / _fol).mkdir(parents=True, exist_ok=True)
+
 
     Thread.thread().file_resolver().append(os.path.dirname(args.scene_file))
 
