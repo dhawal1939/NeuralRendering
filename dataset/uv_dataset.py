@@ -92,7 +92,7 @@ class UVDatasetSHEvalReal(Dataset):
 class UVDatasetSH(Dataset):
 
     def __init__(self, dir, idx_list, H, W, view_direction=False):
-        self.idx_list = sorted(os.listdir(dir+'/frames/'))
+        self.idx_list = sorted(os.listdir(dir+'frames/'))
         for i in range(len(self.idx_list)):
             self.idx_list[i] = self.idx_list[i].replace('.png', '').replace('image', '')
 

@@ -14,13 +14,14 @@ from tqdm import tqdm
 
 import config
 from dataset.uv_dataset import UVDatasetSH, UVDatasetSHEvalReal
+from dataset.uv_dataset_new import UVDataset,UVDatasetEvalReal
 from model.pipeline import PipeLineSH
 from model.pipeline_new import PipeLine
+
 
 import cv2
 
 import external_sh_func as esh
-
 
 if __name__ == '__main__':
 
@@ -54,10 +55,8 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    dataset = UVDatasetSHEvalReal(args.data, args.train, args.croph, args.cropw, args.view_direction)
-    dataloader = DataLoader(dataset, batch_size=4, shuffle=False, num_workers=4)
-
-    os.makedirs(args.output_dir,exist_ok=True)
+    dataset = UVDatasetEvalReal(args.data, args.train, args.croph, args.cropw, args.view_direction)
+    dataloader = DataLoader(dataset, batch_size=4, shuffle=False, num_workers=0)
 
     model_lif = torch.load(args.lif_checkpoint)
     model_lif = model_lif.to('cuda')
@@ -66,48 +65,42 @@ if __name__ == '__main__':
     model_mask = torch.load(args.mask_checkpoint)
     model_mask = model_mask.to('cuda')
     model_mask.eval()
-
+    os.makedirs(args.output_dir,exist_ok=True)
     torch.set_grad_enabled(False)
 
     iidx = 0
     for idx, samples in enumerate(tqdm(dataloader)):
         # print(idx)
-        images, uv_maps, extrinsics, gt_masks, sh, forward = samples
-
-        RGB_texture_lif, preds = model_lif(uv_maps.cuda(), extrinsics.cuda())
-        RGB_texture_masks, masks = model_mask(uv_maps.cuda(), extrinsics.cuda())
-
-        mask_sigmoid = nn.Sigmoid()(masks)
+        images, uv_maps, mask, extrinsics, wi, envmap = samples
+        mask = mask.cuda()
+        RGB_texture_masks, net_masks = model_mask(uv_maps.cuda(), extrinsics.cuda())
+            
+        mask_sigmoid = nn.Sigmoid()(net_masks)
         mask_sigmoid[mask_sigmoid >= 0.5] = 1
         mask_sigmoid[mask_sigmoid <0.5 ] = 0
+        images = images.cuda() * mask
 
-        sh = sh.view(-1, 9, 3, sh.shape[2], sh.shape[3])
-        preds = preds.view(-1, 9, 3, preds.shape[2], preds.shape[3])
+        RGB_texture, preds, forward,albedo_uv = model_lif(wi.cuda(), envmap.cuda(), uv_maps.cuda(), extrinsics.cuda())
+        preds *= mask_sigmoid
+        forward *= mask
 
-        preds = preds * sh.cuda()
-        preds_final = torch.sum(preds, dim=1, keepdim=False)
-        preds_final = torch.clamp(preds_final, 0, 1)   
-        
-        preds_final *= mask_sigmoid
-        preds_final = preds_final.clamp(0, 1)
+        mask = mask.cpu().numpy()
 
-        mask_sigmoid = mask_sigmoid.cpu().numpy()
-        gt_masks = gt_masks.cpu().numpy()
-
-        for j in range(0, preds_final.shape[0]):
-            output = np.clip(preds_final[j, :, :, :].detach().cpu().numpy(), 0, 1) ** (1.0/2.2)
+        for j in range(0, preds.shape[0]):
+            output = np.clip(preds[0, :, :, :].detach().cpu().numpy(), 0, 1) ** (1.0 / 2.2)
             output = output * 255.0
             output = output.astype(np.uint8)
             output = np.transpose(output, (1, 2, 0))
+            # print(output.shape)
 
             gt = np.clip(images[j, :, :, :].detach().cpu().numpy(), 0, 1) ** (1.0/2.2)
-            gt *= gt_masks[j, :, :, :]
+            gt *= mask[j, :, :, :]
             gt = gt * 255.0
             gt = gt.astype(np.uint8)
             gt = np.transpose(gt, (1, 2, 0))
 
             for_rend = np.clip(forward[j, :, :, :].cpu().numpy(), 0, 1) ** (1.0/2.2)
-            for_rend *= mask_sigmoid[j, :, :, :]
+            for_rend *= mask[j, :, :, :]
             for_rend = for_rend * 255.0
             for_rend = for_rend.astype(np.uint8)
             for_rend = np.transpose(for_rend, (1, 2, 0))
