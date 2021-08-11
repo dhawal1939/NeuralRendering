@@ -17,6 +17,8 @@ from dataset.uv_dataset import UVDatasetSH, UVDatasetMask
 from model.pipeline import PipeLineSH,PipeLineMask
 from model.pipeline_new import PipeLine
 from loss import PerceptualLoss
+from math import log10, sqrt
+from skimage import metrics
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--texturew', type=int, default=config.TEXTURE_W)
@@ -63,7 +65,14 @@ def adjust_learning_rate(optimizer, epoch, original_lr):
         lr = 0.01 * original_lr
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
-
+def PSNR(original, compressed):
+    mse = np.mean((original - compressed) ** 2)
+    if(mse == 0):  # MSE is zero means no noise is present in the signal .
+                  # Therefore PSNR have no importance.
+        return 100
+    max_pixel = 255.0
+    psnr = 20 * log10(max_pixel / sqrt(mse))
+    return psnr
 
 def main():
     named_tuple = time.localtime()
@@ -73,9 +82,12 @@ def main():
         os.makedirs(log_dir)
     writer = tensorboardX.SummaryWriter(logdir=log_dir)
 
+
     checkpoint_dir = args.checkpoint + time_string
     if not os.path.exists(checkpoint_dir):
         os.makedirs(checkpoint_dir)
+
+    os.makedirs(checkpoint_dir+'/texture_output/',exist_ok=True)
 
     dataset = UVDataset(args.data + '/train/', args.train, args.croph, args.cropw, view_direction=args.view_direction,
                         samples=args.samples)
@@ -132,7 +144,7 @@ def main():
 
     model = model.to('cuda')
     criterion = nn.L1Loss()
-    # criterion = PerceptualLoss()
+    criterion_p1 = PerceptualLoss()
     model_mask = model_mask.to('cuda')
     criterion_mask = nn.BCEWithLogitsLoss()
 
@@ -226,11 +238,12 @@ def main():
             step += images.shape[0]
             optimizer.zero_grad()
 
-            RGB_texture, preds, forward = model(wi.cuda(), envmap.cuda(), uv_maps.cuda(), extrinsics.cuda())
+            RGB_texture, preds, forward,albedo_uv = model(wi.cuda(), envmap.cuda(), uv_maps.cuda(), extrinsics.cuda())
             preds *= mask_sigmoid
             forward *= mask
             
-            loss = criterion(preds, images) + criterion(forward, images)
+            mean_albedo = torch.abs(torch.mean(albedo_uv)-0.5)
+            loss = criterion_p1(preds, images) + criterion(forward, images) + mean_albedo
             loss.backward()
             optimizer.step()
 
@@ -244,6 +257,7 @@ def main():
         all_gt = []
         all_uv = []
         all_albedo = []
+        all_psnr = []
         idx = 0
         for samples in tqdm(test_dataloader, desc=f'Test: Epoch {i}'):
             if idx == 20:
@@ -258,11 +272,12 @@ def main():
             mask_sigmoid[mask_sigmoid <0.5 ] = 0
             images = images.cuda() * mask
 
-            RGB_texture, preds, forward = model(wi.cuda(), envmap.cuda(), uv_maps.cuda(), extrinsics.cuda())
+            RGB_texture, preds, forward,albedo_uv = model(wi.cuda(), envmap.cuda(), uv_maps.cuda(), extrinsics.cuda())
             preds *= mask_sigmoid
             forward *= mask
 
-            loss = criterion(preds, images) + criterion(forward, images)
+            mean_albedo = torch.mean(torch.abs(albedo_uv-0.5))
+            loss = criterion(preds, images) + criterion(forward, images) + mean_albedo
             test_loss += loss.item()
 
             output = np.clip(preds[0, :, :, :].detach().cpu().numpy(), 0, 1) ** (1.0 / 2.2)
@@ -288,12 +303,15 @@ def main():
             all_gt.append(gt)
             all_uv.append(uv_final)
             all_albedo.append(albedo)
+            all_psnr.append(metrics.peak_signal_noise_ratio(gt, output))
+            
 
             idx += 1
 
         ridx = i % 20
 
         writer.add_scalar('test/loss', test_loss / 20, test_step)
+        writer.add_scalar('test/psnr', sum(all_psnr) / len(all_psnr), test_step)
         writer.add_image('test/output', all_preds[ridx], test_step)
         writer.add_image('test/gt', all_gt[ridx], test_step)
         writer.add_image('test/albedo', all_albedo[ridx], test_step)
@@ -307,7 +325,7 @@ def main():
 
             albedo = np.transpose(all_albedo[0], (1, 2, 0))
             albedo = cv2.cvtColor(albedo, cv2.COLOR_RGB2BGR)
-            cv2.imwrite('%s/texture_output/%s.png' % (args.data, str(test_step).zfill(5)), albedo)
+            cv2.imwrite('%s/texture_output/%s.png' % (checkpoint_dir, str(test_step).zfill(5)), albedo)
 
 
 if __name__ == '__main__':

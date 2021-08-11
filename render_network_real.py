@@ -15,10 +15,12 @@ from tqdm import tqdm
 import config
 from dataset.uv_dataset import UVDatasetSH, UVDatasetSHEvalReal
 from model.pipeline import PipeLineSH
+from model.pipeline_new import PipeLine
 
 import cv2
 
 import external_sh_func as esh
+
 
 if __name__ == '__main__':
 
@@ -55,6 +57,8 @@ if __name__ == '__main__':
     dataset = UVDatasetSHEvalReal(args.data, args.train, args.croph, args.cropw, args.view_direction)
     dataloader = DataLoader(dataset, batch_size=4, shuffle=False, num_workers=4)
 
+    os.makedirs(args.output_dir,exist_ok=True)
+
     model_lif = torch.load(args.lif_checkpoint)
     model_lif = model_lif.to('cuda')
     model_lif.eval()
@@ -77,8 +81,8 @@ if __name__ == '__main__':
         mask_sigmoid[mask_sigmoid >= 0.5] = 1
         mask_sigmoid[mask_sigmoid <0.5 ] = 0
 
-        sh = sh.view(-1, 25, 3, sh.shape[2], sh.shape[3])
-        preds = preds.view(-1, 25, 3, preds.shape[2], preds.shape[3])
+        sh = sh.view(-1, 9, 3, sh.shape[2], sh.shape[3])
+        preds = preds.view(-1, 9, 3, preds.shape[2], preds.shape[3])
 
         preds = preds * sh.cuda()
         preds_final = torch.sum(preds, dim=1, keepdim=False)
@@ -88,6 +92,7 @@ if __name__ == '__main__':
         preds_final = preds_final.clamp(0, 1)
 
         mask_sigmoid = mask_sigmoid.cpu().numpy()
+        gt_masks = gt_masks.cpu().numpy()
 
         for j in range(0, preds_final.shape[0]):
             output = np.clip(preds_final[j, :, :, :].detach().cpu().numpy(), 0, 1) ** (1.0/2.2)
@@ -96,7 +101,7 @@ if __name__ == '__main__':
             output = np.transpose(output, (1, 2, 0))
 
             gt = np.clip(images[j, :, :, :].detach().cpu().numpy(), 0, 1) ** (1.0/2.2)
-            gt *= mask_sigmoid[j, :, :, :]
+            gt *= gt_masks[j, :, :, :]
             gt = gt * 255.0
             gt = gt.astype(np.uint8)
             gt = np.transpose(gt, (1, 2, 0))

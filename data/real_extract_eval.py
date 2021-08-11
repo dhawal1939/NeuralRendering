@@ -62,7 +62,7 @@ def process(args, i, img_path, output_dir):
                         spp=8, width=args.img_width, height=args.img_height)
 
     rendered_op = render(scene, spp=1)
-    rendered_op = rendered_op.numpy().reshape(IMG_HEIGHT, IMG_WIDTH, 26, 3)
+    rendered_op = rendered_op.numpy().reshape(IMG_HEIGHT, IMG_WIDTH, 11, 3)
 
     f_sh = rendered_op[:, :, 1:, :]
     f_sh = f_sh.reshape(IMG_HEIGHT, IMG_WIDTH, -1)

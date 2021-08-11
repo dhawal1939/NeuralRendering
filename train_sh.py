@@ -15,6 +15,7 @@ import config
 from dataset.uv_dataset import UVDatasetSH,UVDatasetMask
 from model.pipeline import PipeLineSH,PipeLineMask
 from loss import PerceptualLoss
+from math import log10, sqrt
 
 
 parser = argparse.ArgumentParser()
@@ -60,7 +61,14 @@ def adjust_learning_rate(optimizer, epoch, original_lr):
         lr = 0.01 * original_lr
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
-
+def PSNR(original, compressed):
+    mse = np.mean((original - compressed) ** 2)
+    if(mse == 0):  # MSE is zero means no noise is present in the signal .
+                  # Therefore PSNR have no importance.
+        return 100
+    max_pixel = 255.0
+    psnr = 20 * log10(max_pixel / sqrt(mse))
+    return psnr
 
 def main():
     named_tuple = time.localtime()
@@ -88,18 +96,29 @@ def main():
     mask_test_step = 0
     # model_mask = PipeLineMask(256, 256, args.mask_texture_dim, args.use_pyramid, args.view_direction)
     # mask_step = 0
-
+    if args.mask_load:
+        print("Loaded Mask Network")
+        model_mask = torch.load(os.path.join(args.checkpoint, args.mask_load))
+        mask_step = args.mask_load_step
+    else:
+        model_mask = PipeLineMask(256, 256, args.mask_texture_dim, args.use_pyramid, args.view_direction)
+        mask_step = 0
+    if args.load_lif:
+        print("Loaded Network")        
+        model = torch.load(os.path.join(args.checkpoint, args.load_lif))
+        step = args.load_step
+    else:
+        model = PipeLineSH(args.texturew, args.textureh, args.texture_dim, args.use_pyramid, args.view_direction)
+        step = 0
     # if args.load:
     #     print('Loading Saved Model')
-    #     model = torch.load(os.path.join(args.checkpoint, args.load))
-    #     step = args.load_step
+    #     
     #     model_mask = torch.load(os.path.join(args.checkpoint, args.mask_load))
     #     mask_step = args.mask_load_step
     # else:
-    model = PipeLineSH(args.texturew, args.textureh, args.texture_dim, args.use_pyramid, args.view_direction)
-    step = 0
-    model_mask = PipeLineMask(256, 256, args.mask_texture_dim, args.use_pyramid, args.view_direction)
-    mask_step = 0
+    
+    # model_mask = PipeLineMask(256, 256, args.mask_texture_dim, args.use_pyramid, args.view_direction)
+    # mask_step = 0
 
     l2 = args.l2.split(',')
     l2 = [float(x) for x in l2]
@@ -128,9 +147,11 @@ def main():
     criterion_mask = nn.BCEWithLogitsLoss()
 
     print('Mask Training started')
-    for i in range(1, 1+args.mask_epoch):
+    for i in range(mask_step, 1+args.mask_epoch):
         print('Epoch {}'.format(i))
-
+        if mask_step > args.mask_epoch:
+            print(mask_step,args.mask_epoch)
+            break
         model_mask.train()
         torch.set_grad_enabled(True)
 
@@ -196,7 +217,7 @@ def main():
     
     print('Training started')
     model_mask.eval()
-    for i in range(1, 1+args.epoch):
+    for i in range(step, 1+args.epoch):
         print('Epoch {}'.format(i))
         adjust_learning_rate(optimizer, i, args.lr)
 
@@ -251,6 +272,7 @@ def main():
         all_gt = []
         all_uv = []
         all_error = []
+        all_psnr = []
         all_forward = []
         for samples in tqdm(test_dataloader):
             images, env, forward, uv_maps, extrinsics, masks, sh = samples
@@ -302,10 +324,13 @@ def main():
             # all_uv.append(uv_final)
             all_forward.append(for_rend)
             all_error.append(error)
+            all_psnr.append(PSNR(gt,output))
+
 
         ridx = i%len(test_dataset)
 
         writer.add_scalar('test/loss', test_loss/len(test_dataset), test_step)
+        writer.add_scalar('test/psnr', sum(all_psnr) / len(all_psnr), test_step)
         writer.add_image('test/output', all_preds[ridx], test_step)
         writer.add_image('test/gt', all_gt[ridx], test_step)
         writer.add_image('test/forward', all_forward[ridx], test_step)
