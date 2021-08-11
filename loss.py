@@ -55,4 +55,4 @@ class PerceptualLoss(nn.Module):
 		output_vgg = self.vgg(output)
 		target_vgg = self.vgg(target)
 
-		return 0.5*self.l1(output, target) + 0.2*self.l2(output_vgg, target_vgg)
+		return 0.8*self.l1(output, target) + 0.2*self.l2(output_vgg, target_vgg)

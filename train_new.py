@@ -144,7 +144,7 @@ def main():
 
     model = model.to('cuda')
     criterion = nn.L1Loss()
-    # criterion = PerceptualLoss()
+    criterion_p1 = PerceptualLoss()
     model_mask = model_mask.to('cuda')
     criterion_mask = nn.BCEWithLogitsLoss()
 
@@ -243,7 +243,7 @@ def main():
             forward *= mask
             
             mean_albedo = torch.abs(torch.mean(albedo_uv)-0.5)
-            loss = criterion(preds, images) + criterion(forward, images) + mean_albedo
+            loss = criterion_p1(preds, images) + criterion(forward, images) + mean_albedo
             loss.backward()
             optimizer.step()
 

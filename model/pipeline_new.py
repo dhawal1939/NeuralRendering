@@ -156,7 +156,7 @@ class PipeLine(nn.Module):
 
         # Forward
         forward = albedo_ * envmap
-        forward = torch.sum(forward, dim=2, keepdim=False) # [b, 3, h, w]
+        forward = torch.mean(forward, dim=2, keepdim=False) # [b, 3, h, w]
 
         # SH project
         y_0_0 = torch.mean( y_0_0_(albedo_, wi[:, 0:1, :, :, :], wi[:, 1:2, :, :, :]), dim=2 ) # [b, 3, h, w]
