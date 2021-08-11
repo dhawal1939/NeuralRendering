@@ -57,6 +57,7 @@ if __name__ == '__main__':
                         default=config.EPOCH_PER_CHECKPOINT)
 
     parser.add_argument('--output_dir', type=str, default='')
+    parser.add_argument('--material', type=str, default='')
     parser.add_argument('--pixel_x', type=int, default=0)
     parser.add_argument('--pixel_y', type=int, default=0)
 
@@ -77,7 +78,7 @@ if __name__ == '__main__':
         if 'albedo_tex' in key:
             k.append(key)
 
-    img = Image.open(('../plant_mat2.png'), 'r')
+    img = Image.open((args.material), 'r')
     img = transforms.ToTensor()(img)
     img = img**(2.2)
 
