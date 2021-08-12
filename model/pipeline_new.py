@@ -186,7 +186,7 @@ class PipeLine(nn.Module):
         final = torch.sum(final, dim=1, keepdim=False) # [b, 3, h, w]
 
         albedo_tex = torch.cat((self.albedo_tex.textures[0].layer1, self.albedo_tex.textures[1].layer1, self.albedo_tex.textures[2].layer1), dim=1)
-        print(albedo_tex.shape)
+        # print(albedo_tex.shape)
         return albedo_tex, final, forward, albedo 
 
 

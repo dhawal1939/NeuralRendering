@@ -220,7 +220,7 @@ def main():
     print('Training started', flush=True)
     model_mask.eval()
     for i in range(1, 1 + args.epoch):
-        print()
+        # print()
         adjust_learning_rate(optimizer, i, args.lr)
 
         model.train()
@@ -242,8 +242,8 @@ def main():
             preds *= mask_sigmoid
             forward *= mask
             
-            mean_albedo = torch.abs(torch.mean(albedo_uv)-0.5)
-            loss = criterion_p1(preds, images) + criterion(forward, images) + mean_albedo
+            # mean_albedo = torch.mean(torch.abs(albedo_uv-0.5))
+            loss = criterion_p1(preds, images) + criterion(forward, images) #+ mean_albedo
             loss.backward()
             optimizer.step()
 
@@ -257,6 +257,7 @@ def main():
         all_gt = []
         all_uv = []
         all_albedo = []
+        all_forward = []
         all_psnr = []
         idx = 0
         for samples in tqdm(test_dataloader, desc=f'Test: Epoch {i}'):
@@ -276,8 +277,8 @@ def main():
             preds *= mask_sigmoid
             forward *= mask
 
-            mean_albedo = torch.mean(torch.abs(albedo_uv-0.5))
-            loss = criterion(preds, images) + criterion(forward, images) + mean_albedo
+            # mean_albedo = torch.mean(torch.abs(albedo_uv-0.5))
+            loss = criterion(preds, images) + criterion(forward, images) #+ mean_albedo
             test_loss += loss.item()
 
             output = np.clip(preds[0, :, :, :].detach().cpu().numpy(), 0, 1) ** (1.0 / 2.2)
@@ -287,6 +288,10 @@ def main():
             gt = np.clip(images[0, :, :, :].detach().cpu().numpy(), 0, 1) ** (1.0 / 2.2)
             gt = gt * 255.0
             gt = gt.astype(np.uint8)
+
+            _forward = np.clip(forward[0, :, :, :].detach().cpu().numpy(), 0, 1) ** (1.0 / 2.2)
+            _forward = _forward * 255.0
+            _forward = _forward.astype(np.uint8)
 
             albedo = np.clip(RGB_texture[0, :, :, :].detach().cpu().numpy(), 0, 1) ** (1.0 / 2.2)
             albedo = albedo * 255.0
@@ -304,6 +309,7 @@ def main():
             all_uv.append(uv_final)
             all_albedo.append(albedo)
             all_psnr.append(metrics.peak_signal_noise_ratio(gt, output))
+            all_forward.append(_forward)
             
 
             idx += 1
@@ -315,6 +321,7 @@ def main():
         writer.add_image('test/output', all_preds[ridx], test_step)
         writer.add_image('test/gt', all_gt[ridx], test_step)
         writer.add_image('test/albedo', all_albedo[ridx], test_step)
+        writer.add_image('test/forward', all_forward[ridx], test_step)
 
         test_step += 1
 

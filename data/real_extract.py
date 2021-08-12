@@ -110,7 +110,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--scene_file', type=str, default='pinecone_dr.xml')
     parser.add_argument('--data_dir', type=str, default='./', help='')
-    parser.add_argument('--output_dir', type=str, default='./', help='')
+    # parser.add_argument('--output_dir', type=str, default='./', help='')
     parser.add_argument('--train_image_list_txt', type=str, default='./', help='')
     parser.add_argument('--test_image_list_txt', type=str, default='./', help='')
     parser.add_argument('--sensor_width', type=float, default=6.4) # Sensor width in mm, default for ROG phone 2
@@ -127,7 +127,7 @@ if __name__ == '__main__':
     IMG_HEIGHT = args.img_height
     register_integrator('auxintegrator', lambda props: sh.AuxIntegrator(props))
     
-    output_parent = Path(args.output_dir)
+    output_parent = Path(args.data_dir) / '0-DR-Dataset'
     sub_folders  = 'env  extrinsics  forward  frames  mask  sh  uv  uv_png'.split()
 
     for _fol in ['train', 'test']:
@@ -137,7 +137,7 @@ if __name__ == '__main__':
 
     Thread.thread().file_resolver().append(os.path.dirname(args.scene_file))
 
-    alignment_vec = np.array([args.alignment_x, args.alignment_y, args.alignment_z], dtype=np.float)
+    alignment_vec = np.array([args.alignment_x, args.alignment_y, args.alignment_z], dtype=np.float32)
     from_vec = np.array([0.0, 1.0, 0.0])
     env_pose = trimesh.geometry.align_vectors(from_vec, alignment_vec)
     env_pose = env_pose.flatten()
@@ -150,7 +150,7 @@ if __name__ == '__main__':
         img_list.append(l)
 
     for i, img_path in enumerate(img_list):
-        process(args, i, img_path, frames_dir, args.output_dir+'/train/', 'colmap_output/', env_pose)
+        process(args, i, img_path, frames_dir, str(output_parent)+'/train/', 'colmap_output/', env_pose)
     
     #--Test--
     frames_dir = 'video_frames_test'
@@ -160,4 +160,4 @@ if __name__ == '__main__':
         img_list.append(l)
 
     for i, img_name in enumerate(img_list):
-        process(args, i, img_name, frames_dir, args.output_dir+'/test/', 'colmap_output/colmap_output_test/', env_pose)
+        process(args, i, img_name, frames_dir, str(output_parent)+'/test/', 'colmap_output/colmap_output_test/', env_pose)
