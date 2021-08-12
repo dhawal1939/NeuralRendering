@@ -2,6 +2,8 @@ import argparse, cv2
 import numpy as np
 import os
 import random
+from PIL import Image, ImageOps
+import torchvision.transforms as transforms
 import tensorboardX
 import time
 import torch
@@ -49,6 +51,7 @@ parser.add_argument('--epoch_per_checkpoint', type=int, default=5)
 parser.add_argument('--samples', type=int, default=config.SAMPLES)
 parser.add_argument('--mask_load', type=str, default="")
 parser.add_argument('--mask_load_step', type=int, default=0)
+parser.add_argument('--init_albedo', type=str, default='')
 
 
 args = parser.parse_args()
@@ -156,6 +159,25 @@ def main():
     model_mask = model_mask.to('cuda')
     criterion_mask = nn.BCEWithLogitsLoss()
 
+    ## INIT THE ALBEDO TEX
+    ######################
+    l = model.state_dict()
+    k = []
+    for key in l.keys():
+        if 'albedo_tex' in key:
+            k.append(key)
+
+    img = Image.open((args.init_albedo), 'r')
+    img = transforms.ToTensor()(img)
+    img = transforms.Resize((512, 512))(img)
+    img = img**(2.2)
+
+    for i in range(3):
+        model.state_dict()[k[i]][0, 0] = img[i].cuda()
+        model.state_dict()[k[i+3]][0, 0] = img[i].cuda()
+
+    ######################
+
     print('Mask Training started', flush=True)
     for i in range(args.mask_load_step, 1+args.mask_epoch):
         print('Epoch {}'.format(i))
@@ -233,10 +255,6 @@ def main():
 
         model.train()
         torch.set_grad_enabled(True)
-        if i<10:
-                l1 += 0.06
-                l2 -= 0.06
-
         for samples in tqdm(dataloader, desc=f'Train: Epoch {i}'):
             images, uv_maps, mask, extrinsics, wi, envmap = samples
             mask = mask.cuda()
