@@ -50,6 +50,7 @@ parser.add_argument('--samples', type=int, default=config.SAMPLES)
 parser.add_argument('--mask_load', type=str, default="")
 parser.add_argument('--mask_load_step', type=int, default=0)
 
+
 args = parser.parse_args()
 
 
@@ -65,6 +66,8 @@ def adjust_learning_rate(optimizer, epoch, original_lr):
         lr = 0.01 * original_lr
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
+
+
 def PSNR(original, compressed):
     mse = np.mean((original - compressed) ** 2)
     if(mse == 0):  # MSE is zero means no noise is present in the signal .
@@ -103,21 +106,26 @@ def main():
     mask_test_dataloader = DataLoader(mask_test_dataset, batch_size=1, shuffle=True, num_workers=4)
     mask_test_step = 0    
 
-    if args.load:
-        print('Loading Saved Model')
-        model = torch.load(os.path.join(args.checkpoint, args.load))
-        step = args.load_step
-        model_mask = torch.load(os.path.join(args.checkpoint, args.mask_load))
+    lambda1 = 0.2
+    lambda2 = 0.8
+
+    if args.mask_load:
+        print("Loaded Mask Network")
+        model_mask = torch.load(args.mask_load)
         mask_step = args.mask_load_step
     else:
-        # model = PipeLineTex(args.texturew, args.textureh, args.texture_dim, args.use_pyramid, samples=args.samples,
-        #                  view_direction=args.view_direction)
+        model_mask = PipeLineMask(256, 256, args.mask_texture_dim, args.use_pyramid, args.view_direction)
+        mask_step = 0
+    if args.load:
+        print("Loaded Network")        
+        model = torch.load(args.load)
+        step = args.load_step
+    else:
         model = PipeLine(args.texturew, args.textureh, args.texture_dim, args.use_pyramid, samples=args.samples,
                          view_direction=args.view_direction)
         step = 0
-        model_mask = PipeLineMask(256, 256, args.mask_texture_dim, args.use_pyramid, args.view_direction)
-        mask_step = 0
 
+    
     l2 = args.l2.split(',')
     l2 = [float(x) for x in l2]
     betas = args.betas.split(',')
@@ -149,7 +157,7 @@ def main():
     criterion_mask = nn.BCEWithLogitsLoss()
 
     print('Mask Training started', flush=True)
-    for i in range(1, 1+args.mask_epoch):
+    for i in range(args.mask_load_step, 1+args.mask_epoch):
         print('Epoch {}'.format(i))
 
         model_mask.train()
@@ -225,6 +233,9 @@ def main():
 
         model.train()
         torch.set_grad_enabled(True)
+        if i<10:
+                l1 += 0.06
+                l2 -= 0.06
 
         for samples in tqdm(dataloader, desc=f'Train: Epoch {i}'):
             images, uv_maps, mask, extrinsics, wi, envmap = samples
@@ -244,6 +255,7 @@ def main():
             
             # mean_albedo = torch.mean(torch.abs(albedo_uv-0.5))
             loss = criterion_p1(preds, images) + criterion(forward, images) #+ mean_albedo
+
             loss.backward()
             optimizer.step()
 
@@ -259,6 +271,7 @@ def main():
         all_albedo = []
         all_forward = []
         all_psnr = []
+        all_forwd = []
         idx = 0
         for samples in tqdm(test_dataloader, desc=f'Test: Epoch {i}'):
             if idx == 20:
@@ -279,6 +292,7 @@ def main():
 
             # mean_albedo = torch.mean(torch.abs(albedo_uv-0.5))
             loss = criterion(preds, images) + criterion(forward, images) #+ mean_albedo
+
             test_loss += loss.item()
 
             output = np.clip(preds[0, :, :, :].detach().cpu().numpy(), 0, 1) ** (1.0 / 2.2)
@@ -304,13 +318,17 @@ def main():
             uv_final = uv_final * 255.0
             uv_final = uv_final.astype(np.uint8)
 
+            # for_rend = np.clip(forward[0, :, :, :].cpu().numpy(), 0, 1) ** (1.0/2.2)
+            # for_rend = for_rend * 255.0
+            # for_rend = for_rend.astype(np.uint8)
+            # for_rend = np.transpose(for_rend, (1, 2, 0))
+
             all_preds.append(output)
             all_gt.append(gt)
             all_uv.append(uv_final)
             all_albedo.append(albedo)
             all_psnr.append(metrics.peak_signal_noise_ratio(gt, output))
             all_forward.append(_forward)
-            
 
             idx += 1
 
