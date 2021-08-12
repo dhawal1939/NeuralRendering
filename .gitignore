@@ -6,3 +6,4 @@ __pycache__/
 *tfrecords
 .idea/
 U2Net/
+08_*/
